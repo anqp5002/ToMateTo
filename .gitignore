@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+*.log
+.idea/
+.vscode/
+**/local.properties
+**/google-services.json
+**/key.properties
+**/*.jks
+**/*.keystore
