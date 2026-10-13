@@ -1,0 +1,6 @@
+# Ignore all PDF files
+*.pdf
+
+# Ignore Database Overview files
+DATABASE_OVERVIEW.md
+[Dd]atabase_[Oo]verview.md
