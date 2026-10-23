@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1380" height="1040" viewBox="0 0 1380 1040" font-family="Arial, Helvetica, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1380" height="1090" viewBox="0 0 1380 1090" font-family="Arial, Helvetica, sans-serif">
 <defs><marker id="open" markerWidth="12" markerHeight="10" refX="11" refY="5" orient="auto"><path d="M0,0 L11,5 L0,10" fill="none" stroke="#1F2328" stroke-width="1.4"/></marker><marker id="tri" markerWidth="18" markerHeight="16" refX="17" refY="8" orient="auto"><path d="M1,1 L17,8 L1,15 Z" fill="#FFFFFF" stroke="#1F2328" stroke-width="1.4"/></marker></defs>
-<rect width="1380" height="1040" fill="#FFFFFF"/>
+<rect width="1380" height="1090" fill="#FFFFFF"/>
 <rect x="110" y="55" width="1070" height="785" rx="8" fill="#FCFCFD" stroke="#1F2328" stroke-width="1.6"/>
 <text x="645.0" y="85.0" font-size="17" font-weight="bold" fill="#1F2328" text-anchor="middle">Hệ thống ToMateTo</text>
 <polyline points="1330.0,388.0 1330.0,30.0 62.0,30.0 62.0,418.0" fill="none" stroke="#1F2328" stroke-width="1.4" marker-end="url(#tri)"/>
@@ -14,7 +14,7 @@
 <line x1="86.0" y1="452.0" x2="190.0" y2="724.0" stroke="#1F2328" stroke-width="1.4"/>
 <line x1="86.0" y1="452.0" x2="190.0" y2="806.0" stroke="#1F2328" stroke-width="1.4"/>
 <line x1="1306.0" y1="422.0" x2="1215.0" y2="422.0" stroke="#1F2328" stroke-width="1.4"/>
-<line x1="1215.0" y1="422.0" x2="1215.0" y2="880.0" stroke="#1F2328" stroke-width="1.4"/>
+<line x1="1215.0" y1="115.0" x2="1215.0" y2="775.0" stroke="#1F2328" stroke-width="1.4"/>
 <polyline points="1215.0,115.0 700.0,115.0" fill="none" stroke="#1F2328" stroke-width="1.4"/>
 <polyline points="1215.0,170.0 1010.0,170.0" fill="none" stroke="#1F2328" stroke-width="1.4"/>
 <polyline points="1215.0,430.0 1010.0,430.0" fill="none" stroke="#1F2328" stroke-width="1.4"/>
@@ -26,15 +26,17 @@
 <polyline points="1215.0,775.0 700.0,775.0" fill="none" stroke="#1F2328" stroke-width="1.4"/>
 <polyline points="1215.0,690.0 1010.0,690.0" fill="none" stroke="#1F2328" stroke-width="1.4"/>
 <polyline points="1215.0,300.0 1010.0,300.0" fill="none" stroke="#1F2328" stroke-width="1.4"/>
-<polyline points="380.0,314.0 440.0,314.0 440.0,885.0 300.0,885.0 300.0,903.0" fill="none" stroke="#1F2328" stroke-width="1.4"/>
-<polyline points="380.0,642.0 465.0,642.0 465.0,885.0 1150.0,885.0 1150.0,903.0" fill="none" stroke="#1F2328" stroke-width="1.4"/>
-<polyline points="510.0,625.0 490.0,625.0 490.0,885.0 740.0,885.0 740.0,903.0" fill="none" stroke="#1F2328" stroke-width="1.4"/>
-<polyline points="1010.0,170.0 1050.0,170.0 1050.0,885.0 520.0,885.0 520.0,903.0" fill="none" stroke="#1F2328" stroke-width="1.4"/>
-<polyline points="1010.0,300.0 1075.0,300.0 1075.0,885.0 520.0,885.0 520.0,903.0" fill="none" stroke="#1F2328" stroke-width="1.4"/>
-<polyline points="1010.0,300.0 1100.0,300.0 1100.0,885.0 960.0,885.0 960.0,903.0" fill="none" stroke="#1F2328" stroke-width="1.4"/>
-<polyline points="915.0,712.0 915.0,885.0 960.0,885.0 960.0,903.0" fill="none" stroke="#1F2328" stroke-width="1.4"/>
+<polyline points="380.0,314.0 440.0,314.0 440.0,862.0 300.0,862.0 300.0,953.0" fill="none" stroke="#0B7285" stroke-width="1.4"/>
+<polyline points="380.0,642.0 465.0,642.0 465.0,918.0 1150.0,918.0 1150.0,953.0" fill="none" stroke="#2B8A3E" stroke-width="1.4"/>
+<polyline points="510.0,495.0 475.0,495.0 475.0,890.0 740.0,890.0 740.0,953.0" fill="none" stroke="#7B2CBF" stroke-width="1.4"/>
+<polyline points="510.0,625.0 490.0,625.0 490.0,890.0 740.0,890.0 740.0,953.0" fill="none" stroke="#7B2CBF" stroke-width="1.4"/>
+<polyline points="1001.1,179.3 1050.0,179.3 1050.0,876.0 520.0,876.0 520.0,953.0" fill="none" stroke="#B35C00" stroke-width="1.4"/>
+<polyline points="1001.1,309.3 1075.0,309.3 1075.0,876.0 520.0,876.0 520.0,953.0" fill="none" stroke="#B35C00" stroke-width="1.4"/>
+<polyline points="982.2,315.6 1100.0,315.6 1100.0,904.0 960.0,904.0 960.0,953.0" fill="none" stroke="#C2255C" stroke-width="1.4"/>
+<polyline points="1001.1,699.3 1125.0,699.3 1125.0,918.0 1150.0,918.0 1150.0,953.0" fill="none" stroke="#2B8A3E" stroke-width="1.4"/>
+<polyline points="915.0,712.0 915.0,904.0 960.0,904.0 960.0,953.0" fill="none" stroke="#C2255C" stroke-width="1.4"/>
 <line x1="915.0" y1="278.0" x2="915.0" y2="192.0" stroke="#1F2328" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#open)"/>
-<text x="927" y="239.2" font-size="12" font-weight="normal" fill="#57606A" text-anchor="start">«include»</text>
+<text x="927" y="217.2" font-size="12" font-weight="normal" fill="#57606A" text-anchor="start">«include»</text>
 <ellipse cx="285" cy="150" rx="95" ry="22" fill="#E7F0FB" stroke="#2F5F98" stroke-width="1.6"/>
 <text x="285" y="140.2" font-size="12" font-weight="normal" fill="#1F2328" text-anchor="middle">UC-01</text>
 <text x="285" y="154.2" font-size="12" font-weight="normal" fill="#1F2328" text-anchor="middle">Đăng ký</text>
@@ -111,27 +113,27 @@
 <text x="62" y="510.6" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">Khách</text>
 <g stroke="#1F2328" stroke-width="2" fill="#FFFFFF"><circle cx="1330" cy="402" r="11"/><line x1="1330" y1="413" x2="1330" y2="438"/><line x1="1313" y1="422" x2="1347" y2="422"/><line x1="1330" y1="438" x2="1317" y2="458"/><line x1="1330" y1="438" x2="1343" y2="458"/></g>
 <text x="1330" y="480.6" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">Người dùng</text>
-<g stroke="#1F2328" stroke-width="2" fill="#FFFFFF"><circle cx="300" cy="917" r="11"/><line x1="300" y1="928" x2="300" y2="953"/><line x1="283" y1="937" x2="317" y2="937"/><line x1="300" y1="953" x2="287" y2="973"/><line x1="300" y1="953" x2="313" y2="973"/></g>
-<text x="300" y="994.9" font-size="11" font-weight="normal" fill="#57606A" text-anchor="middle">«hệ thống ngoài»</text>
-<text x="300" y="1011.5" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">Dịch vụ</text>
-<text x="300" y="1027.5" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">gửi email</text>
-<g stroke="#1F2328" stroke-width="2" fill="#FFFFFF"><circle cx="520" cy="917" r="11"/><line x1="520" y1="928" x2="520" y2="953"/><line x1="503" y1="937" x2="537" y2="937"/><line x1="520" y1="953" x2="507" y2="973"/><line x1="520" y1="953" x2="533" y2="973"/></g>
-<text x="520" y="994.9" font-size="11" font-weight="normal" fill="#57606A" text-anchor="middle">«hệ thống ngoài»</text>
-<text x="520" y="1011.5" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">Dịch vụ</text>
-<text x="520" y="1027.5" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">lưu trữ ảnh</text>
-<g stroke="#1F2328" stroke-width="2" fill="#FFFFFF"><circle cx="740" cy="917" r="11"/><line x1="740" y1="928" x2="740" y2="953"/><line x1="723" y1="937" x2="757" y2="937"/><line x1="740" y1="953" x2="727" y2="973"/><line x1="740" y1="953" x2="753" y2="973"/></g>
-<text x="740" y="994.9" font-size="11" font-weight="normal" fill="#57606A" text-anchor="middle">«hệ thống ngoài»</text>
-<text x="740" y="1011.5" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">Dịch vụ</text>
-<text x="740" y="1027.5" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">thông báo đẩy</text>
-<g stroke="#1F2328" stroke-width="2" fill="#FFFFFF"><circle cx="960" cy="917" r="11"/><line x1="960" y1="928" x2="960" y2="953"/><line x1="943" y1="937" x2="977" y2="937"/><line x1="960" y1="953" x2="947" y2="973"/><line x1="960" y1="953" x2="973" y2="973"/></g>
-<text x="960" y="994.9" font-size="11" font-weight="normal" fill="#57606A" text-anchor="middle">«hệ thống ngoài»</text>
-<text x="960" y="1011.5" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">Nhà cung cấp</text>
-<text x="960" y="1027.5" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">mô hình AI</text>
-<g stroke="#1F2328" stroke-width="2" fill="#FFFFFF"><circle cx="1150" cy="917" r="11"/><line x1="1150" y1="928" x2="1150" y2="953"/><line x1="1133" y1="937" x2="1167" y2="937"/><line x1="1150" y1="953" x2="1137" y2="973"/><line x1="1150" y1="953" x2="1163" y2="973"/></g>
-<text x="1150" y="994.9" font-size="11" font-weight="normal" fill="#57606A" text-anchor="middle">«hệ thống ngoài»</text>
-<text x="1150" y="1011.5" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">Dịch vụ</text>
-<text x="1150" y="1027.5" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">định vị thiết bị</text>
-<rect x="1245" y="560" width="128" height="168" rx="6" fill="#FFFFFF" stroke="#57606A"/>
+<g stroke="#0B7285" stroke-width="2" fill="#FFFFFF"><circle cx="300" cy="967" r="11"/><line x1="300" y1="978" x2="300" y2="1003"/><line x1="283" y1="987" x2="317" y2="987"/><line x1="300" y1="1003" x2="287" y2="1023"/><line x1="300" y1="1003" x2="313" y2="1023"/></g>
+<text x="300" y="1044.8" font-size="11" font-weight="normal" fill="#57606A" text-anchor="middle">«hệ thống ngoài»</text>
+<text x="300" y="1061.5" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">Dịch vụ</text>
+<text x="300" y="1077.5" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">gửi email</text>
+<g stroke="#B35C00" stroke-width="2" fill="#FFFFFF"><circle cx="520" cy="967" r="11"/><line x1="520" y1="978" x2="520" y2="1003"/><line x1="503" y1="987" x2="537" y2="987"/><line x1="520" y1="1003" x2="507" y2="1023"/><line x1="520" y1="1003" x2="533" y2="1023"/></g>
+<text x="520" y="1044.8" font-size="11" font-weight="normal" fill="#57606A" text-anchor="middle">«hệ thống ngoài»</text>
+<text x="520" y="1061.5" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">Dịch vụ</text>
+<text x="520" y="1077.5" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">lưu trữ ảnh</text>
+<g stroke="#7B2CBF" stroke-width="2" fill="#FFFFFF"><circle cx="740" cy="967" r="11"/><line x1="740" y1="978" x2="740" y2="1003"/><line x1="723" y1="987" x2="757" y2="987"/><line x1="740" y1="1003" x2="727" y2="1023"/><line x1="740" y1="1003" x2="753" y2="1023"/></g>
+<text x="740" y="1044.8" font-size="11" font-weight="normal" fill="#57606A" text-anchor="middle">«hệ thống ngoài»</text>
+<text x="740" y="1061.5" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">Dịch vụ</text>
+<text x="740" y="1077.5" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">thông báo đẩy</text>
+<g stroke="#C2255C" stroke-width="2" fill="#FFFFFF"><circle cx="960" cy="967" r="11"/><line x1="960" y1="978" x2="960" y2="1003"/><line x1="943" y1="987" x2="977" y2="987"/><line x1="960" y1="1003" x2="947" y2="1023"/><line x1="960" y1="1003" x2="973" y2="1023"/></g>
+<text x="960" y="1044.8" font-size="11" font-weight="normal" fill="#57606A" text-anchor="middle">«hệ thống ngoài»</text>
+<text x="960" y="1061.5" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">Nhà cung cấp</text>
+<text x="960" y="1077.5" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">mô hình AI</text>
+<g stroke="#2B8A3E" stroke-width="2" fill="#FFFFFF"><circle cx="1150" cy="967" r="11"/><line x1="1150" y1="978" x2="1150" y2="1003"/><line x1="1133" y1="987" x2="1167" y2="987"/><line x1="1150" y1="1003" x2="1137" y2="1023"/><line x1="1150" y1="1003" x2="1163" y2="1023"/></g>
+<text x="1150" y="1044.8" font-size="11" font-weight="normal" fill="#57606A" text-anchor="middle">«hệ thống ngoài»</text>
+<text x="1150" y="1061.5" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">Dịch vụ</text>
+<text x="1150" y="1077.5" font-size="13" font-weight="bold" fill="#1F2328" text-anchor="middle">định vị thiết bị</text>
+<rect x="1245" y="560" width="128" height="204" rx="6" fill="#FFFFFF" stroke="#57606A"/>
 <text x="1253" y="580.2" font-size="12" font-weight="bold" fill="#1F2328" text-anchor="start">Chú giải</text>
 <ellipse cx="1261" cy="596" rx="11" ry="6" fill="#E7F0FB" stroke="#2F5F98" stroke-width="1.4"/>
 <text x="1277" y="599.7" font-size="10.5" font-weight="normal" fill="#1F2328" text-anchor="start">Tài khoản</text>
@@ -144,7 +146,9 @@
 <ellipse cx="1261" cy="676" rx="11" ry="6" fill="#FCE8EA" stroke="#A63446" stroke-width="1.4"/>
 <text x="1277" y="679.7" font-size="10.5" font-weight="normal" fill="#1F2328" text-anchor="start">Trợ lý AI</text>
 <line x1="1253.0" y1="696.0" x2="1273.0" y2="696.0" stroke="#1F2328" stroke-width="1.4"/>
-<text x="1277" y="699.5" font-size="10" font-weight="normal" fill="#1F2328" text-anchor="start">Actor tham gia UC</text>
+<text x="1277" y="699.5" font-size="10" font-weight="normal" fill="#1F2328" text-anchor="start">Actor chính</text>
 <line x1="1253.0" y1="714.0" x2="1273.0" y2="714.0" stroke="#1F2328" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#open)"/>
 <text x="1277" y="717.5" font-size="10" font-weight="normal" fill="#1F2328" text-anchor="start">«include»</text>
+<text x="1253" y="739.5" font-size="10" font-weight="normal" fill="#1F2328" text-anchor="start">Đường màu: UC nối với</text>
+<text x="1253" y="752.5" font-size="10" font-weight="normal" fill="#1F2328" text-anchor="start">actor phụ cùng màu</text>
 </svg>

@@ -83,8 +83,10 @@ U19 ..> U07 : <<include>>
 U03 -- EMAIL
 U07 -- IMG
 U19 -- IMG
+U13 -- PUSH
 U14 -- PUSH
 U18 -- AI
+U18 -- GEO
 U19 -- AI
 U16 -- GEO
 @enduml
