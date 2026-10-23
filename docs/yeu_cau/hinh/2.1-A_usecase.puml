@@ -1,0 +1,92 @@
+@startuml 2.1-A_usecase
+' DOC 2.1-A — Use Case Diagram ToMateTo
+
+left to right direction
+skinparam usecase {
+  BackgroundColor White
+  BorderColor #3A4A5E
+}
+skinparam packageStyle rectangle
+skinparam shadowing false
+
+actor "Khách" as KHACH
+actor "Người dùng" as USER
+KHACH <|-- USER
+
+actor "Dịch vụ gửi email" as EMAIL <<hệ thống ngoài>>
+actor "Lưu trữ ảnh" as IMG <<hệ thống ngoài>>
+actor "Thông báo đẩy" as PUSH <<hệ thống ngoài>>
+actor "Nhà cung cấp AI" as AI <<hệ thống ngoài>>
+actor "Định vị thiết bị" as GEO <<hệ thống ngoài>>
+
+rectangle "ToMateTo" {
+
+  ' --- Tài khoản ---
+  usecase "UC-01 Đăng ký" as U01
+  usecase "UC-02 Đăng nhập" as U02
+  usecase "UC-03 Khôi phục mật khẩu" as U03
+  usecase "UC-04 Đăng xuất" as U04
+
+  ' --- Feed & nội dung ---
+  usecase "UC-05 Xem feed" as U05
+  usecase "UC-06 Xem chi tiết bài" as U06
+  usecase "UC-07 Tạo bài đăng" as U07
+  usecase "UC-08 Sửa bài của mình" as U08
+  usecase "UC-09 Xoá bài của mình" as U09
+
+  ' --- Hồ sơ ---
+  usecase "UC-10 Xem hồ sơ" as U10
+  usecase "UC-11 Cập nhật hồ sơ" as U11
+  usecase "UC-12 Công khai hồ sơ" as U12
+
+  ' --- Tương tác ---
+  usecase "UC-13 Thích / lưu bài" as U13
+  usecase "UC-14 Theo dõi & thông báo" as U14
+  usecase "UC-15 Báo cáo bài" as U15
+
+  ' --- Khám phá & AI ---
+  usecase "UC-16 Bản đồ quán gần" as U16
+  usecase "UC-17 Quay món ngẫu nhiên" as U17
+  usecase "UC-18 Hỏi trợ lý" as U18
+  usecase "UC-19 Dùng bản nháp trợ lý" as U19
+  usecase "UC-20 Tìm kiếm & xu hướng" as U20
+}
+
+' Khách: chức năng công khai (đọc + đăng ký/nhập)
+KHACH -- U01
+KHACH -- U02
+KHACH -- U03
+KHACH -- U05
+KHACH -- U06
+KHACH -- U10
+KHACH -- U16
+KHACH -- U17
+KHACH -- U20
+
+' Người dùng: chức năng cần đăng nhập (kế thừa toàn bộ quyền Khách)
+USER -- U04
+USER -- U07
+USER -- U08
+USER -- U09
+USER -- U11
+USER -- U12
+USER -- U13
+USER -- U14
+USER -- U15
+USER -- U18
+USER -- U19
+
+' Quan hệ duy nhất giữa các UC
+U19 ..> U07 : <<include>>
+
+' Actor phụ
+U03 -- EMAIL
+U07 -- IMG
+U19 -- IMG
+U13 -- PUSH
+U14 -- PUSH
+U18 -- AI
+U18 -- GEO
+U19 -- AI
+U16 -- GEO
+@enduml
