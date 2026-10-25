@@ -1,4 +1,10 @@
 # Ignore all PDF files
 *.pdf
 
-
+# Review response / local notes
+5.5-B_review_response_s4.md
+5.5-B_review_respond_s4.md
+*review_response*
+*review_respond*
+REVIEW_DANH_GIA_USECASE_NFR.md
+USECASE_NFR_SPEC.md
