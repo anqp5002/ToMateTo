@@ -1,5 +1,4 @@
 # Ignore all PDF files
 *.pdf
-# Internal docs / specifications
-REVIEW_DANH_GIA_USECASE_NFR.md
-USECASE_NFR_SPEC.md
+
+
