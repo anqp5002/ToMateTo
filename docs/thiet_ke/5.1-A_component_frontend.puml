@@ -1,0 +1,138 @@
+@startuml
+title ToMateTo — Frontend Component Interfaces
+left to right direction
+skinparam componentStyle uml2
+component "C01 Auth UI" as C01
+component "C02 Auth Controller" as C02
+component "C03 Feed Controller" as C03
+component "C04 Post Detail Controller" as C04
+component "C05 Post Editor Controller" as C05
+component "C06 Profile Controller" as C06
+component "C07 Interaction Controller" as C07
+component "C08 Collection Controller" as C08
+component "C09 Notification Controller" as C09
+component "C10 Discovery Controller" as C10
+component "C11 Assistant Controller" as C11
+component "C12 Content Views" as C12
+component "C13 Profile and Social Views" as C13
+component "C14 Discovery and Assistant Views" as C14
+component "C15 Navigation Context" as C15
+component "C16 Async State and Error UI" as C16
+component "C17 Authenticated GraphQL Transport" as C17
+component "C18 Account Repository" as C18
+component "C19 Content Repository" as C19
+component "C20 Social Repository" as C20
+component "C21 Discovery and Assistant Repository" as C21
+component "C22 Session Store" as C22
+component "C23 Media Adapter" as C23
+component "C24 Location Adapter" as C24
+component "C25 Session Lifecycle" as C25
+component "C26 Password Recovery" as C26
+interface "IC01" as IC01
+C01 - IC01 : provides
+interface "IC02" as IC02
+C02 - IC02 : provides
+interface "IC03" as IC03
+C03 - IC03 : provides
+interface "IC04" as IC04
+C04 - IC04 : provides
+interface "IC05" as IC05
+C05 - IC05 : provides
+interface "IC06" as IC06
+C06 - IC06 : provides
+interface "IC07" as IC07
+C07 - IC07 : provides
+interface "IC08" as IC08
+C08 - IC08 : provides
+interface "IC09" as IC09
+C09 - IC09 : provides
+interface "IC10" as IC10
+C10 - IC10 : provides
+interface "IC11" as IC11
+C11 - IC11 : provides
+interface "IC12" as IC12
+C12 - IC12 : provides
+interface "IC13" as IC13
+C13 - IC13 : provides
+interface "IC14" as IC14
+C14 - IC14 : provides
+interface "IC15" as IC15
+C15 - IC15 : provides
+interface "IC16" as IC16
+C16 - IC16 : provides
+interface "IC17" as IC17
+C17 - IC17 : provides
+interface "IC18" as IC18
+C18 - IC18 : provides
+interface "IC19" as IC19
+C19 - IC19 : provides
+interface "IC20" as IC20
+C20 - IC20 : provides
+interface "IC21" as IC21
+C21 - IC21 : provides
+interface "IC22" as IC22
+C22 - IC22 : provides
+interface "IC23" as IC23
+C23 - IC23 : provides
+interface "IC24" as IC24
+C24 - IC24 : provides
+interface "IC25" as IC25
+C25 - IC25 : provides
+interface "IC26" as IC26
+C26 - IC26 : provides
+C01 ..> IC02 : requires
+C01 ..> IC15 : requires
+C01 ..> IC16 : requires
+C02 ..> IC25 : requires
+C02 ..> IC26 : requires
+C03 ..> IC19 : requires
+C04 ..> IC19 : requires
+C05 ..> IC19 : requires
+C05 ..> IC23 : requires
+C06 ..> IC20 : requires
+C07 ..> IC20 : requires
+C08 ..> IC20 : requires
+C09 ..> IC20 : requires
+C10 ..> IC21 : requires
+C10 ..> IC24 : requires
+C11 ..> IC21 : requires
+C11 ..> IC24 : requires
+C12 ..> IC03 : requires
+C12 ..> IC04 : requires
+C12 ..> IC05 : requires
+C12 ..> IC07 : requires
+C12 ..> IC15 : requires
+C12 ..> IC16 : requires
+C13 ..> IC06 : requires
+C13 ..> IC07 : requires
+C13 ..> IC08 : requires
+C13 ..> IC09 : requires
+C13 ..> IC15 : requires
+C13 ..> IC16 : requires
+C14 ..> IC10 : requires
+C14 ..> IC11 : requires
+C14 ..> IC15 : requires
+C14 ..> IC16 : requires
+C15 ..> IC22 : requires
+C17 ..> IC22 : requires
+C18 ..> IC17 : requires
+C19 ..> IC17 : requires
+C20 ..> IC17 : requires
+C21 ..> IC17 : requires
+C23 ..> IC22 : requires
+C25 ..> IC18 : requires
+C25 ..> IC22 : requires
+C26 ..> IC18 : requires
+component "Backend GraphQL HTTPS" as BE
+component "Backend Upload" as UP
+component "Device / Browser Location" as GEO
+C17 ..> BE
+C23 ..> UP
+C24 ..> GEO
+legend right
+ICxx: interface contract of component Cxx.
+Repository contract groups and operation signatures: DOC 5.1-A section 3.1.
+Dotted arrow: required dependency.
+Solid link: provided interface.
+endlegend
+@enduml
