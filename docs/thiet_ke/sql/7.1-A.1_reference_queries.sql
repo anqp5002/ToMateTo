@@ -1,13 +1,11 @@
--- DOC 7.1-A.1 / DB S6 WBS 6.2.2 / draft 1.2 / 2026-11-10
--- Align defined behavior to BE DOC 7.1 v1.3 at 23a5f14; not a team approval.
--- Search relevance and random pool quotas remain pending BE; Q06/Q08 are samples only.
+-- DOC 7.1-A.1 / DB S6 WBS 6.2.2 / version 1.5 / 2026-11-16
+-- Q06 aligns BE DOC 7.1 v1.5 section 7 at 5061503; not a team approval.
+-- Q08 pool and Q15 internal Tag acceptance remain pending Lead/DB decisions.
 -- REFERENCE ONLY: load into a disposable PostgreSQL 16 database with DOC 6.4 DDL.
 -- PREPARE is session-local. No permanent schema changes, migrations or provider calls.
 -- Repository validates principal, first in [1,50], cursor context and parameter pairs.
 SET search_path = public, pg_catalog;
 SET TIME ZONE 'UTC';
--- Production repository must SET LOCAL inside its search transaction, not leak pooled state.
-SET pg_trgm.similarity_threshold = 0.3;
 
 -- Q01: normalization of catalog/query text. Never use unaccent for email.
 PREPARE s6_normalize(text) AS
@@ -85,48 +83,45 @@ WHERE c.user_id = $1 AND c.id = $2 AND NOT p.is_hidden AND ($1 IS NULL OR NOT EX
   AND ($4 IS NULL OR (ci.added_at, ci.post_id) < ($4, $5))
 ORDER BY ci.added_at DESC, ci.post_id DESC LIMIT ($3 + 1);
 
--- Q06: search. viewer, raw_query, type or NULL, first, after_type_rank, after_id.
--- LEGACY SAMPLE ONLY: DISH then RESTAURANT then POST, each by id ASC.
--- Does NOT implement BE relevance ordering; do not reuse its cursor as the final contract.
--- Catalog results are independent entities, never hydrated with blocked author's content.
-PREPARE s6_search(bigint, text, text, integer, integer, bigint) AS
+-- Q06: viewer, raw_query, type or NULL, first, after_relevance, after_type_rank, after_id.
+-- BE relevance: exact=3, prefix=2, substring=1; max across fields; no fuzzy-only hits.
+-- POST fields are dish name and normalized caption, not restaurant/location_name.
+-- Repository validates all three cursor values together and query/type/viewer context.
+PREPARE s6_search(bigint, text, text, integer, integer, integer, bigint) AS
 WITH q AS (
     SELECT lower(public.unaccent(btrim(regexp_replace($2, '[[:space:]]+', ' ', 'g')))) AS value
-), pattern AS (
-    SELECT value,
-        '%' || replace(replace(replace(value, chr(92), chr(92)||chr(92)),
-                    '%', chr(92)||'%'), '_', chr(92)||'_') || '%' AS value_like
-    FROM q
-), hits AS (
-    SELECT 1 AS type_rank, 'DISH'::text AS kind, d.id, d.name AS title
-    FROM dishes d CROSS JOIN pattern q
-    WHERE ($3 IS NULL OR $3 = 'DISH')
-      AND (d.name_normalized LIKE q.value_like ESCAPE E'\\'
-           OR d.name_normalized % q.value)
+), candidates AS (
+    SELECT 1 AS type_rank, 'DISH'::text AS kind, d.id, d.name AS title,
+           ARRAY[d.name_normalized] AS fields
+    FROM dishes d WHERE $3 IS NULL OR $3 = 'DISH'
     UNION ALL
-    SELECT 2, 'RESTAURANT', r.id, r.name
-    FROM restaurants r CROSS JOIN pattern q
-    WHERE ($3 IS NULL OR $3 = 'RESTAURANT')
-      AND (r.name_normalized LIKE q.value_like ESCAPE E'\\'
-           OR r.name_normalized % q.value)
+    SELECT 2, 'RESTAURANT', r.id, r.name, ARRAY[r.name_normalized]
+    FROM restaurants r WHERE $3 IS NULL OR $3 = 'RESTAURANT'
     UNION ALL
-    SELECT 3, 'POST', p.id, d.name
+    SELECT 3, 'POST', p.id, d.name,
+           ARRAY[d.name_normalized,
+             lower(public.unaccent(btrim(regexp_replace(coalesce(p.caption,''), '[[:space:]]+', ' ', 'g'))))]
     FROM posts p JOIN dishes d ON d.id = p.dish_id
-    LEFT JOIN restaurants r ON r.id = p.restaurant_id CROSS JOIN pattern q
-    WHERE ($3 IS NULL OR $3 = 'POST') AND NOT p.is_hidden AND ($1 IS NULL OR NOT EXISTS (
+    WHERE ($3 IS NULL OR $3 = 'POST') AND NOT p.is_hidden
+      AND ($1 IS NULL OR NOT EXISTS (
         SELECT 1 FROM user_blocks b
         WHERE (b.blocker_id = $1 AND b.blocked_id = p.user_id)
            OR (b.blocker_id = p.user_id AND b.blocked_id = $1)
     ))
-      AND (d.name_normalized LIKE q.value_like ESCAPE E'\\'
-           OR d.name_normalized % q.value
-           OR r.name_normalized LIKE q.value_like ESCAPE E'\\'
-           OR r.name_normalized % q.value
-           OR lower(public.unaccent(btrim(regexp_replace(coalesce(p.location_name, ''), '[[:space:]]+', ' ', 'g')))) LIKE q.value_like ESCAPE E'\\')
+), scored AS (
+    SELECT c.type_rank, c.kind, c.id, c.title,
+           (SELECT max(CASE WHEN f.value = q.value THEN 3
+                           WHEN position(q.value IN f.value) = 1 THEN 2
+                           WHEN position(q.value IN f.value) > 0 THEN 1
+                           ELSE 0 END)
+            FROM unnest(c.fields) AS f(value)) AS relevance
+    FROM candidates c CROSS JOIN q WHERE q.value <> ''
 )
-SELECT type_rank, kind, id, title FROM hits
-WHERE $5 IS NULL OR (type_rank, id) > ($5, $6)
-ORDER BY type_rank ASC, id ASC LIMIT ($4 + 1);
+SELECT relevance, type_rank, kind, id, title FROM scored
+WHERE relevance > 0
+  AND ($5 IS NULL OR relevance < $5
+       OR (relevance = $5 AND (type_rank, id) > ($6, $7)))
+ORDER BY relevance DESC, type_rank ASC, id ASC LIMIT ($4 + 1);
 
 -- Q07: bounding-box CANDIDATES ONLY. min_lat, max_lat, min_lon, max_lon.
 -- When min_lon > max_lon the box crosses the antimeridian.
@@ -138,7 +133,8 @@ WHERE latitude IS NOT NULL AND longitude IS NOT NULL AND latitude BETWEEN $1 AND
        OR ($3 > $4 AND (longitude >= $3 OR longitude <= $4)))
 ORDER BY id;
 
--- Q08: LEGACY SAMPLE ONLY: uniform random catalog choice, NOT BE's pending 40/70/30 pool.
+-- Q08: CATALOG BASELINE ONLY: proves an existing entity can be selected.
+-- Not acceptance of BE's proposed 40-item (28 trending / 12 seed) pool or RNG/reason.
 PREPARE s6_random_dish AS
 SELECT id, name FROM dishes ORDER BY random() LIMIT 1;
 
@@ -192,8 +188,9 @@ SELECT id FROM dishes WHERE id = ANY($1) ORDER BY id FOR KEY SHARE;
 PREPARE s6_lock_tags(bigint[]) AS
 SELECT id FROM tags WHERE id = ANY($1) ORDER BY id FOR KEY SHARE;
 
--- Q14 above is reserved for the pending Tag design; not called by v1 publication.
--- Q15: atomically store run + BE v1 post/dish snapshots, no Tag writes.
+-- Q14 above is reserved for the pending Tag design; not called by baseline publication.
+-- Q15: POST_DISH_BASELINE only: atomically store run + post/dish snapshots.
+-- Not acceptance of the proposed three-group publication; Tag formula/activation pending.
 -- end_at, formula_version, array of {post_id,dish_id,score,dish_score}.
 -- This JSON is internal transport of computed rows, not a new persistent schema.
 -- Service validates unique posts, scores from Q09 and all expected parent locks.
@@ -246,7 +243,7 @@ WHERE s.run_id = $2 AND EXISTS (
 AND ($4 IS NULL OR (s.score, s.dish_id) < ($4, $5))
 ORDER BY s.score DESC, s.dish_id DESC LIMIT ($3 + 1);
 
--- Q18: reserved read sample for retained Tag schema; no v1 API/job activates this query.
+-- Q18: reserved Tag read; API v1 has no Tag field, internal job still needs approval.
 PREPARE s6_trending_tags(bigint, bigint, integer, numeric, bigint) AS
 SELECT s.tag_id AS id, t.name, s.score, r.published_at, r.window_end
 FROM trending_tag_snapshots s JOIN tags t ON t.id = s.tag_id
@@ -290,9 +287,10 @@ SELECT p.id FROM posts p WHERE p.id = ANY($2) AND NOT p.is_hidden AND ($1 IS NUL
     ))
 ORDER BY p.id;
 
--- Q21: conversation history owner check plus cursor. viewer, session_id, first, after_time, after_id.
+-- Q21: internal history with persisted question/reply linkage plus owner and cursor.
+-- viewer, session_id, first, after_time, after_id. Does not create client request correlation.
 PREPARE s6_chat_history(bigint, bigint, integer, timestamptz, bigint) AS
-SELECT m.id, m.role, m.content, m.status, m.post_draft, m.created_at
+SELECT m.id, m.session_id, m.reply_to_id, m.role, m.content, m.status, m.post_draft, m.created_at
 FROM chat_messages m JOIN chat_sessions s ON s.id = m.session_id
 WHERE s.user_id = $1 AND s.id = $2
   AND ($4 IS NULL OR (m.created_at,m.id) < ($4,$5))

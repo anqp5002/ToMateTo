@@ -25,6 +25,7 @@ REFERENCE = Path(__file__).with_name('7.1-A.1_reference_queries.sql').read_text(
 DDL_DOC = (ROOT / 'docs/thiet_ke/6.4-B_ddl.md').read_text(encoding='utf-8')
 DDL = re.search(r'<!-- BEGIN DDL -->\s*```sql\n(.*?)```', DDL_DOC, re.S).group(1)
 passed = []
+scopes = {}
 
 
 def docker(*args, input_text=None, check=True):
@@ -44,10 +45,11 @@ def rows(command):
     return list(csv.DictReader(io.StringIO(sql(command).stdout)))
 
 
-def expect(condition, label):
+def expect(condition, label, scope="reference_sql"):
     if not condition:
         raise AssertionError(label)
     passed.append(label)
+    scopes[scope] = scopes.get(scope, 0) + 1
 
 
 def literal(value):
@@ -146,6 +148,62 @@ ANALYZE;
 """
 
 
+def verify_search_relevance():
+    # Independent fixture: deleted before metrics; no persistent schema changes.
+    sql("INSERT INTO dishes(id,name,name_normalized) VALUES "
+        "(9001,'needle','needle'),(9002,'needle bowl','needle bowl'),"
+        "(9003,'red needle bowl','red needle bowl'),(9004,'neadle','neadle'); "
+        "INSERT INTO restaurants(id,name,name_normalized) VALUES (9001,'needle','needle'); "
+        "INSERT INTO posts(id,user_id,dish_id,restaurant_id,caption,location_name,is_hidden) VALUES "
+        "(9001,3,9004,NULL,'NEEDLE',NULL,false),"
+        "(9002,3,9004,NULL,'needle in caption',NULL,false),"
+        "(9003,3,9004,9001,'no match','needle',false),"
+        "(9004,3,9004,NULL,'needle',NULL,true),"
+        "(9005,2,9004,NULL,'needle',NULL,false);")
+    try:
+        all_hits=rows("EXECUTE s6_search(1,'needle',NULL,50,NULL,NULL,NULL);")
+        keys=[(int(r['relevance']),int(r['type_rank']),int(r['id'])) for r in all_hits]
+        expected=[(3,1,9001),(3,2,9001),(3,3,9001),(2,1,9002),(2,3,9002),(1,1,9003)]
+        expect(keys==expected, 'Q06 exact/prefix/substring max score and same-ID cross-type ties')
+        expect(not any(r['id'] in ('9003','9004','9005') and r['kind']=='POST' for r in all_hits),
+               'Q06 POST uses dish/caption only and excludes hidden/blocked sources')
+        first=rows("EXECUTE s6_search(1,'needle',NULL,3,NULL,NULL,NULL);")
+        expect(len(first)==4 and [(int(r['relevance']),int(r['type_rank']),int(r['id'])) for r in first[:3]]==expected[:3],
+               'Q06 first+1 stops displayed page at relevance boundary')
+        following=rows("EXECUTE s6_search(1,'needle',NULL,3,3,3,9001);")
+        expect([(int(r['relevance']),int(r['type_rank']),int(r['id'])) for r in following]==expected[3:],
+               'Q06 continuation crosses relevance 3 to 2 to 1 without losing same-ID rows')
+        expect(len(rows("EXECUTE s6_search(1,'needle','POST',10,NULL,NULL,NULL);"))==2,
+               'Q06 type filter is applied before ranking/limit')
+        expect(not rows("EXECUTE s6_search(1,'neadle typo',NULL,10,NULL,NULL,NULL);"),
+               'Q06 no fuzzy-only hit outside BE 3/2/1 scoring')
+    finally:
+        sql('DELETE FROM posts WHERE id BETWEEN 9001 AND 9005; '
+            'DELETE FROM restaurants WHERE id=9001; DELETE FROM dishes WHERE id BETWEEN 9001 AND 9004;')
+
+
+def verify_chat_linkage():
+    sql("INSERT INTO chat_messages(id,session_id,role,content,status,created_at) VALUES "
+        "(8001,1,'user','same question','OK','2026-11-02T00:00Z'),"
+        "(8002,1,'user','same question','OK','2026-11-02T00:00Z'); "
+        "INSERT INTO chat_messages(id,session_id,role,content,status,reply_to_id,processing_version,created_at) VALUES "
+        "(8003,1,'assistant','failed','FAILED',8001,1,'2026-11-02T00:00Z'),"
+        "(8004,1,'assistant','failed','FAILED',8002,1,'2026-11-02T00:00Z');")
+    try:
+        found=rows('EXECUTE s6_chat_history(1,1,50,NULL,NULL);')
+        linked={int(r['id']):r['reply_to_id'] for r in found if r['role']=='assistant'}
+        expect(linked=={8003:'8001',8004:'8002'}, 'Q21 identical failed questions retain distinct reply_to_id links')
+        expect(all(r['session_id']=='1' for r in found), 'Q21 projects session identity only within owner scope')
+        page=rows('EXECUTE s6_chat_history(1,1,1,NULL,NULL);')
+        expect(page[0]['id']=='8004' and page[0]['reply_to_id']=='8002',
+               'Q21 reply link survives page boundary when question is on another page')
+        expect(not rows('EXECUTE s6_chat_history(2,1,50,NULL,NULL);'),
+               'Q21 linkage does not bypass foreign-session owner isolation')
+    finally:
+        sql('DELETE FROM chat_messages WHERE id IN (8003,8004); '
+            'DELETE FROM chat_messages WHERE id IN (8001,8002);')
+
+
 def verify():
     version = rows('SHOW server_version;')[0]['server_version']
     expect(version.startswith('16.'), 'PostgreSQL 16 runtime')
@@ -179,22 +237,22 @@ def verify():
         after=literal(last['created_at'])+','+last['id']
     expect(pages>=10 and len(seen)==len(set(seen)) and len(seen)==247,
            'Deep keyset pages: no duplicate/missing rows with tied timestamps')
-    hits=rows("EXECUTE s6_search(1,'PHỞ',NULL,50,NULL,NULL);")
+    hits=rows("EXECUTE s6_search(1,'PHỞ',NULL,50,NULL,NULL,NULL);")
     expect(any(r['kind']=='DISH' and r['id']=='1' for r in hits), 'Accent-insensitive catalog search')
     expect(not any(r['kind']=='POST' and r['id'] in ('102','103') for r in hits), 'Search privacy')
-    expect(not rows("EXECUTE s6_search(1,'zzzznotfound','POST',10,NULL,NULL);"), 'Search empty state')
-    expect(not rows("EXECUTE s6_search(1,'%%','POST',10,NULL,NULL);"), 'LIKE wildcard escaping')
+    expect(not rows("EXECUTE s6_search(1,'zzzznotfound','POST',10,NULL,NULL,NULL);"), 'Search empty state')
+    expect(not rows("EXECUTE s6_search(1,'%%','POST',10,NULL,NULL,NULL);"), 'Search treats percent as literal substring')
     search_seen=[]
-    after='NULL,NULL'
+    after='NULL,NULL,NULL'
     while True:
         page=rows("EXECUTE s6_search(1,'mon',NULL,20,"+after+');')
         displayed=page[:20]
-        search_seen.extend((int(r['type_rank']),int(r['id'])) for r in displayed)
+        search_seen.extend((-int(r['relevance']),int(r['type_rank']),int(r['id'])) for r in displayed)
         if len(page)<=20:
             break
-        after=displayed[-1]['type_rank']+','+displayed[-1]['id']
+        after=displayed[-1]['relevance']+','+displayed[-1]['type_rank']+','+displayed[-1]['id']
     expect(len(search_seen)==338 and len(set(search_seen))==338 and search_seen==sorted(search_seen),
-           'Legacy search sample only: 338 results, no duplicate or missing rows; relevance pending BE')
+           'Relevance keyset: 338 results, no duplicate or missing rows in full order')
     expect(2 in [i for _,i in nearby(0,0.01)] and 3 not in [i for _,i in nearby(0,0.01)], 'Exact 5km filter')
     isolated=rows('EXECUTE s6_nearby_candidates('+','.join(map(str,bounds(10,10)))+');')
     expect(any(r['id']=='8' for r in isolated) and 8 not in [i for _,i in nearby(10,10)],
@@ -203,7 +261,7 @@ def verify():
     expect(6 in [i for _,i in nearby(0,179.99)], 'Antimeridian bounding box')
     expect(7 in [i for _,i in nearby(90,0)], 'Polar bounding box')
     expect(1 <= int(rows('EXECUTE s6_random_dish;')[0]['id']) <=100,
-           'Legacy random sample only: real catalog entity; BE pool pending')
+           'Q08 baseline: real catalog entity only; pool/RNG acceptance pending', scope='catalog_baseline_only')
     scores=rows('EXECUTE s6_score_posts('+literal(END)+');')
     byid={int(r['post_id']):r for r in scores}
     expect(Decimal(byid[101]['score'])==4 and byid[101]['savers_7d']=='2'
@@ -247,7 +305,7 @@ def verify():
     expect(any(r['id']=='3' and Decimal(r['score'])==2 for r in new_only),
            'Dish with new posts but no interactions remains visible through zero-score post sources')
     expect(not ts and rows(f'SELECT count(*) AS n FROM trending_tag_snapshots WHERE run_id={run};')[0]['n']=='0',
-           'BE v1 publication does not write pending Tag snapshots')
+           'Q15 baseline: post/dish only; no proof of three-group Tag publication', scope='post_dish_baseline_only')
     expect(102 not in visible_ids(f'EXECUTE s6_trending_posts(1,{run},50,NULL,NULL);'), 'Snapshot read rechecks block')
     ranked=rows(f'EXECUTE s6_trending_posts(1,{run},10,NULL,NULL);')
     next_ranked=rows(f'EXECUTE s6_trending_posts(1,{run},10,'+ranked[9]['score']+','+ranked[9]['id']+');')
@@ -256,9 +314,9 @@ def verify():
     before=rows('SELECT count(*) AS n FROM trending_runs;')[0]['n']
     bad=literal(json.dumps([{'post_id':999999,'dish_id':1,'score':1,'dish_score':1}]))
     result=sql('BEGIN; EXECUTE s6_publish_bundle('+literal(END)+",'invalid',"+bad+'::jsonb); COMMIT;',check=False)
-    expect(result.returncode!=0 and '23503' in result.stderr, 'Invalid publication fails FK')
+    expect(result.returncode!=0 and '23503' in result.stderr, 'Q15 baseline: invalid publication fails FK', scope='post_dish_baseline_only')
     expect(rows('SELECT count(*) AS n FROM trending_runs;')[0]['n']==before,
-           'Failed publication leaves no partial run; previous snapshot remains')
+           'Q15 baseline: failed publication leaves no partial run', scope='post_dish_baseline_only')
     holder=subprocess.Popen(['docker','exec',NAME,'psql','-X','-q','-U','postgres','-d',DB,'-c',
                              'SELECT pg_advisory_lock(7101,1); SELECT pg_sleep(5); SELECT pg_advisory_unlock(7101,1);'],
                             stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,encoding='utf-8')
@@ -278,6 +336,8 @@ def verify():
     expect(102 not in [int(r['post_id']) for r in rows("EXECUTE s6_ai_context(1,'pho',10);")], 'AI context respects block')
     expect(visible_ids('EXECUTE s6_ai_validate_posts(1,ARRAY[101,102,103,999999]::bigint[]);')==[101],
            'AI reference validation rejects hidden/blocked/nonexistent')
+    verify_search_relevance()
+    verify_chat_linkage()
     expect(not rows('EXECUTE s6_chat_history(1,2,10,NULL,NULL);'), 'Chat history owner isolation')
     sql("UPDATE chat_sessions SET created_at='2026-11-01T00:00Z' WHERE id IN (1,2); "
         +"INSERT INTO chat_sessions(id,user_id,created_at) VALUES "
@@ -325,7 +385,7 @@ def verify():
     expect(101 not in visible_ids(f'EXECUTE s6_trending_posts(NULL,{run},50,NULL,NULL);'), 'Post deletion removes snapshot entry')
     metrics={}
     for name,command in [('feed','EXECUTE s6_feed_latest(1,10,NULL,NULL)'),
-                         ('search',"EXECUTE s6_search(1,'pho',NULL,10,NULL,NULL)"),
+                         ('search',"EXECUTE s6_search(1,'pho',NULL,10,NULL,NULL,NULL)"),
                          ('nearby_candidates','EXECUTE s6_nearby_candidates(-0.05,0.05,-0.05,0.05)')]:
         times=[]
         for _ in range(20):
@@ -334,6 +394,11 @@ def verify():
         metrics[name]={'samples':20,'sql_median_ms':round(statistics.median(times),3),
                        'sql_p95_ms':round(sorted(times)[18],3)}
     return {'postgresql':version,'checks_passed':len(passed),'checks':passed,
+            'scope_counts':scopes,
+            'acceptance_pending': {
+                'Q08_pool_40': 'NOT_RUN: 28/12 dedup/refill, service RNG and reason need Lead/DB decision',
+                'Q15_three_groups': 'NOT_RUN: internal Tag publication needs HLD/Lead alignment',
+                'retry_client_correlation': 'NOT_RUN: API/FE projection and lost-first-response recovery not defined'},
             'fixture_posts_initial':249,'fixture_posts_during_measurement':248,
             'fixture_dishes':100,'deep_pages':pages,
             'sql_only_metrics':metrics,'api_p95_measured':False}
