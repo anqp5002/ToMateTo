@@ -1,0 +1,21 @@
+# Build context của compose là GỐC repo (cần cả backend/ và db/ trong image).
+# Tệp này là tệp .dockerignore có hiệu lực cho context đó.
+.git
+.venv
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.coverage
+**/htmlcov
+.env
+.env.*
+!.env.example
+uploads
+**/*.log
+docs
+app
+.team
+.idea
+.vscode

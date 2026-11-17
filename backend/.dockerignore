@@ -1,0 +1,22 @@
+# Build context là gốc repo → Docker đọc `.dockerignore` ở gốc, không đọc tệp này.
+# Giữ tệp theo SPEC mục 2 (backend/.dockerignore) và chép cùng nội dung với /.dockerignore
+# để nếu sau này đổi context sang `backend/` thì vẫn lọc đúng.
+.git
+.venv
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.coverage
+**/htmlcov
+.env
+.env.*
+!.env.example
+uploads
+**/*.log
+docs
+app
+.team
+.idea
+.vscode

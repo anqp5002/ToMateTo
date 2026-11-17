@@ -1,4 +1,41 @@
 # Ignore all PDF files
 *.pdf
 
+# Biến môi trường thật (chỉ commit .env.example)
+.env
+.env.*
+!.env.example
 
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Dữ liệu chạy
+uploads/
+*.log
+
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDE / hệ điều hành
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Tệp tạm
+*.tmp
+*.swp

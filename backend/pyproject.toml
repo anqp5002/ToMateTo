@@ -1,0 +1,72 @@
+# Cấu hình backend ToMateTo (DOC 7.4-B): Python 3.12, fastapi, strawberry, ruff, mypy, pytest.
+# Nguồn gốc: docs/quan_ly/7.4-B_cau_hinh/pyproject.toml; chỉ đổi cho cây thư mục S8 r2
+# (SPEC mục 2, 5 — không có db/, không alembic).
+[project]
+name = "tomateto-backend"
+version = "0.1.0"
+description = "ToMateTo backend — FastAPI + Strawberry GraphQL"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi==0.115.6",
+  "uvicorn[standard]==0.34.0",
+  "strawberry-graphql==0.237.3",
+  "sqlalchemy==2.0.37",
+  "psycopg[binary]==3.2.3",
+  "pyjwt==2.10.1",
+  "bcrypt==4.2.1",
+  # 2.11 bỏ `_typing_extra.is_new_type` → strawberry 0.237 không import được; ghim 2.10.x.
+  "pydantic==2.10.6",
+  "pydantic-settings==2.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "ruff==0.8.6",
+  "mypy==1.14.1",
+  "pytest==8.3.4",
+  "httpx==0.28.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [".venv"]
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle lỗi
+  "W",   # pycodestyle cảnh báo
+  "F",   # pyflakes
+  "I",   # sắp xếp import
+  "N",   # đặt tên theo PEP 8
+  "UP",  # cú pháp Python mới
+  "B",   # lỗi dễ gặp (bugbear)
+  "S",   # an toàn (bandit)
+  "C4",  # comprehension
+]
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]  # test dùng assert
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+files = ["app", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

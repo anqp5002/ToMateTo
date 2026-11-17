@@ -1,0 +1,60 @@
+# ToMateTo — dựng môi trường dev bằng một lệnh (S8).
+# Postgres chỉ mở trên loopback 127.0.0.1 (cổng ${POSTGRES_HOST_PORT}, mặc định 5433) cho máy dev;
+# backend nối Postgres qua tên service trong mạng compose, không qua cổng host.
+name: tomateto
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tomateto}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_dev_only}
+      POSTGRES_DB: ${POSTGRES_DB:-tomateto}
+    ports:
+      # CHỈ loopback: dev nối từ máy vào 127.0.0.1:5433. Compose prod không mở 5432 ra ngoài.
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tomateto} -d ${POSTGRES_DB:-tomateto}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    env_file:
+      # Thiếu .env thì vẫn `docker compose config` được; giá trị dưới đây là giá trị giả mặc định.
+      - path: .env
+        required: false
+    environment:
+      # Trong mạng compose, host CSDL là tên service "postgres", không phải localhost.
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-tomateto}:${POSTGRES_PASSWORD:-change_me_dev_only}@postgres:5432/${POSTGRES_DB:-tomateto}
+      UPLOAD_DIR: /srv/uploads
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - uploads:/srv/uploads
+    healthcheck:
+      # Image slim không có curl: dùng urllib của Python.
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8000/health',timeout=3)\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  uploads:
