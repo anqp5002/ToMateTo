@@ -77,4 +77,4 @@ Xem [báo cáo S8](../docs/bao_cao/REPORT_S8_DB_4.2.md) để biết nguồn đ�
 
 Python dùng snake_case, cấu hình tập trung tại `backend/pyproject.toml`, SQL đi kèm package khi cài đặt. Giữ Python 3.11 theo chuẩn chung Lead và lựa chọn ngày 19/11/2026; chuẩn BE đang ghi 3.12 nên cần nhóm thống nhất trước khi đổi runtime.
 
-Xem [mô tả chi tiết và luồng S8](../docs/bao_cao/MO_TA_CHI_TIET_S8_DB_4.2.md) để đọc cấu trúc, trách nhiệm, kiểm tra nhánh và phần còn chờ tích hợp.
+Xem [báo cáo S8](../docs/bao_cao/REPORT_S8_DB_4.2.md) để đọc kết quả kiểm chứng và phần còn chờ tích hợp.

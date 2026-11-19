@@ -72,4 +72,3 @@ Phần có nguồn của S8 được triển khai và kiểm tại DB/repository
 - Giữ **Python 3.11** theo chuẩn chung Lead và lựa chọn người yêu cầu. Chuẩn BE ghi 3.12: chờ nhóm thống nhất.
 - Chạy lại sau chuẩn hóa: **29/29 test đạt**, lượt cuối với dependency build đã khóa: 3,33 giây; CLI migration → seed reset → seed lặp → verify đạt. Xác nhận 4 users, 200 bài, 150 bài có ảnh. Có 153 PNG gồm 150 ảnh bài và 3 ảnh đầu vào NFR; thêm 1 tệp không phải ảnh. Build wheel, kiểm có SQL feed và import runtime từ ngoài repo đều đạt.
 - Gộp thử bằng index tạm: cây DB 55 file thay đổi, FE S8 53 file, không trùng đường dẫn, không có unmerged entry tại FE `00c6270a67e599fb29273b5924112a4e9bc346ff`. Không thay index thật, không merge Flutter vào nhánh DB. Kết quả chỉ áp dụng các SHA đã kiểm.
-- Xem [mô tả toàn bộ S8](MO_TA_CHI_TIET_S8_DB_4.2.md) cho luồng, trách nhiệm và phần còn chờ.
