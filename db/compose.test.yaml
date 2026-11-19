@@ -1,0 +1,29 @@
+name: tomateto-s8-check
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: tomateto_s8_test
+      POSTGRES_HOST_AUTH_METHOD: trust # Isolated test network only; never production config.
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d tomateto_s8_test"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    networks: [test_db]
+  tests:
+    build:
+      context: ..
+      dockerfile: db/Dockerfile.s8-tests
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres@postgres/tomateto_s8_test
+      ALLOW_TEST_DATABASE_RESET: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [test_db]
+networks:
+  test_db:
+    internal: true

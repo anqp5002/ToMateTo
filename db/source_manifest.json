@@ -1,0 +1,48 @@
+{
+  "DDL_commit": "5cfaa56ffb4065eb8a60f25dfee5988c1abacb92",
+  "DDL_document": "docs/thiet_ke/6.4-B_ddl.md",
+  "frozen_sql_sha256": "ad6c25c96f0103f9c28711a6f3e2a8f671cbb3258548e9df84242b2b18a54553",
+  "tables": [
+    "users",
+    "password_resets",
+    "revoked_tokens",
+    "user_devices",
+    "media_assets",
+    "dishes",
+    "restaurants",
+    "tags",
+    "posts",
+    "post_images",
+    "post_tags",
+    "likes",
+    "follows",
+    "collections",
+    "collection_items",
+    "reports",
+    "notifications",
+    "chat_sessions",
+    "chat_messages",
+    "trending_runs",
+    "trending_post_snapshots",
+    "trending_dish_snapshots",
+    "trending_tag_snapshots",
+    "media_cleanup_jobs",
+    "user_blocks"
+  ],
+  "columns": 161,
+  "guide_commit": "b58f8ea",
+  "query_commit": "a15c446",
+  "pending_inputs": [
+    "restaurant_dedup_policy",
+    "shared_backend_scaffold_and_errors",
+    "brief_section_5"
+  ],
+  "user_decisions_2026_11_16": {
+    "users": "user_a..user_d only; guest has no users row",
+    "restaurants": "labeled synthetic coordinates within 5 km",
+    "restaurant_upsert": "no automatic merge; await Lead policy"
+  },
+  "sql_transformation": "Original DDL BEGIN/COMMIT removed; Alembic owns the transaction",
+  "seed_posts": 200,
+  "seed_posts_with_images": 150
+}

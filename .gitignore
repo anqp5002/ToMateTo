@@ -1,4 +1,13 @@
-# Ignore all PDF files
 *.pdf
-
-
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+uploads/
+.coverage
+/docs/thiet_ke/5.3_huong_dan_trinh_bay_db.md
+/docs/thiet_ke/6.4_huong_dan_trinh_bay_db.md
+*.egg-info/
