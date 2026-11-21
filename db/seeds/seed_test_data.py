@@ -110,7 +110,7 @@ def seed(
     data = restaurant_fixture(restaurant_kind, restaurant_file)
     if reset:
         require_test_reset()
-    # Images are fixtures only; no public media route/provider is claimed to exist in S8.
+    # Synthetic fixtures use the same protected UUID route as uploaded media in S9.
     fixture_dir = media_dir / "fixture"
     fixture_dir.mkdir(parents=True, exist_ok=True)
     for i in range(1, IMAGE_POST_COUNT + 1):
@@ -191,7 +191,7 @@ def seed(
                         "state": "ATTACHED",
                         "provider": "local-fixture",
                         "storage_key": f"fixture/{i:03}.png",
-                        "url": f"/media/fixture/{i}",
+                        "url": f"/media/{UUID(int=i)}",
                         "input_size_bytes": len(PNG),
                         "stored_size_bytes": len(PNG),
                         "mime_type": "image/png",
@@ -235,6 +235,18 @@ def seed(
         ):
             connection.execute(
                 insert(table).values(batch).on_conflict_do_nothing(constraint=table.primary_key)
+            )
+        # Repair only the exact legacy fixture URL, preserving any custom/edited asset metadata.
+        for i in range(1, IMAGE_POST_COUNT + 1):
+            connection.execute(
+                media_assets.update()
+                .where(
+                    media_assets.c.id == UUID(int=i),
+                    media_assets.c.provider == "local-fixture",
+                    media_assets.c.storage_key == f"fixture/{i:03}.png",
+                    media_assets.c.url == f"/media/fixture/{i}",
+                )
+                .values(url=f"/media/{UUID(int=i)}")
             )
         for table in metadata.tables.values():
             for column in table.columns:

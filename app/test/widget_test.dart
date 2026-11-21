@@ -65,7 +65,10 @@ void main() {
     );
     addTearDown(controller.dispose);
     await tester.pumpWidget(
-      MaterialApp(theme: buildAppTheme(), home: SmokeScreen(controller: controller)),
+      MaterialApp(
+        theme: buildAppTheme(),
+        home: SmokeScreen(controller: controller),
+      ),
     );
     await tester.tap(find.text('Đọc bảng tin thử'));
     await tester.pump();

@@ -90,9 +90,9 @@ Nếu mất phản hồi mutation, FE giữ form và chuyển outcomeUnknown; kh
 
 ## 7. Kiểm chứng và giới hạn tích hợp
 
-Backend đã chạy **38 test đạt** trên PostgreSQL/Python 3.11: hồi quy S8, upload HTTP, resize, rollback nhiều ảnh, Guest, cursor lỗi, block, hidden, URL avatar cũ và lỗi kho ảnh. Ruff check/format đạt; mypy strict đạt 60 file. Có một cảnh báo deprecation của Starlette TestClient/httpx; chưa bỏ qua cảnh báo bằng cấu hình lọc. Không dùng thời gian pytest làm p95 API.
+Backend đã chạy **39 test đạt** trên PostgreSQL/Python 3.11: hồi quy S8, upload HTTP, resize, rollback nhiều ảnh, Guest, cursor lỗi, block, hidden, URL avatar cũ, lỗi kho ảnh và toàn bộ 150 URL fixture. Ruff check/format đạt; mypy strict đạt 61 file. Có một cảnh báo deprecation của Starlette TestClient/httpx; chưa bỏ qua cảnh báo bằng cấu hình lọc. Không dùng thời gian pytest làm p95 API.
 
-Flutter **29 test đạt**, analyze không có issue; gồm test controller giữ dữ liệu/phân trang và outcomeUnknown, layout compose/detail 360×800. SDK ghim đúng revision FE `abaf9c523780a608bd46686fd5e53740a07077f8` (Flutter 3.47.7/Dart 3.13.5). Kiểm trên bản sao source cùng nội dung trong TEMP tên ASCII do SDK có lỗi LSP với đường dẫn Unicode. Theme dùng InkRipple thay cho shader InkSparkle thiếu asset ở môi trường test; không sửa SDK hoặc bỏ ca test. Chưa có Android SDK để xác nhận build/chạy Android, chưa đo 60 fps trên thiết bị.
+Flutter **33 test đạt**, analyze không có issue; gồm hồi quy refresh lỗi/trang cuối/đổi mode/kết quả muộn, outcomeUnknown và layout compose/detail 360×800. SDK ghim đúng revision FE `abaf9c523780a608bd46686fd5e53740a07077f8` (Flutter 3.47.7/Dart 3.13.5). Kiểm trên bản sao source cùng nội dung trong TEMP tên ASCII do SDK có lỗi LSP với đường dẫn Unicode. Theme dùng InkRipple thay cho shader InkSparkle thiếu asset ở môi trường test; không sửa SDK hoặc bỏ ca test. Chưa có Android SDK để xác nhận build/chạy Android, chưa đo 60 fps trên thiết bị.
 
 Verifier B1 thật và B10 của Lead được tiêm vào `create_app`; mặc định verifier từ chối mọi token. Fixture token chỉ nằm trong test. Entry point cục bộ hiện phục vụ Guest; luồng ghi có test với verifier tiêm, chưa thể thay cho đăng nhập thật của nhóm Identity. Hạn mức upload 429 cần chính sách quota và cấu hình chung; chưa tự đặt số lượng tùy ý. Nền Profile/Social/Discovery thật còn cần nhóm tương ứng cung cấp để kiểm xuyên suốt.
 
@@ -103,3 +103,9 @@ Từ root repo, chạy bộ test bằng `docker compose -f db/compose.test.yaml 
 Trong app: `flutter pub get`, `flutter analyze`, `flutter test`; cấu hình `--dart-define=GRAPHQL_URL=http://<host>:8000/graphql`. Android emulator dùng địa chỉ host thích hợp thay localhost. Đăng nhập/token thật do module Identity tích hợp; không hardcode token demo vào app.
 
 Repository là lớp truy cập dữ liệu; service điều phối nghiệp vụ; transaction giữ các thay đổi cùng commit/rollback; asset là ảnh và metadata; cursor là mốc trang tiếp; outcomeUnknown nghĩa chưa biết thao tác ghi đã commit hay chưa. Đây là những thuật ngữ cần phân biệt khi trình bày.
+
+## 9. Sửa lỗi sau đối chiếu yêu cầu
+
+Refresh feed chỉ thay dữ liệu/cursor/hasNext/mode sau khi tải thành công. Khi lỗi, trang cũ được giữ nguyên; thử lại refresh đọc từ đầu và thay trang, không nối lại trang đầu vào danh sách cũ. Refresh vẫn chạy khi danh sách đã hết trang. Kết quả load-more đến muộn không được ghi đè refresh mới; đổi chế độ lỗi giữ nguyên trang/chế độ cũ tới khi thử lại thành công.
+
+URL của 150 ảnh fixture chuyển sang `/media/<uuid>` để dùng route kiểm quyền S9. Seed lặp sửa đúng URL tạm cũ khi id/provider/storage_key còn khớp fixture, giữ nguyên URL đã được sửa riêng. Không tạo thêm bảng, thay ID hay giảm kiểm quyền. Ca HTTP kiểm toàn bộ 150 PNG đọc được và bài bị ẩn vẫn chặn URL ảnh.

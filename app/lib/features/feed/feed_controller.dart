@@ -11,36 +11,43 @@ final class FeedController extends ChangeNotifier {
   String mode = 'LATEST';
   int _generation = 0;
   bool _disposed = false;
+  String? _pendingRefreshMode;
 
   Future<void> refresh({String? feedMode}) async {
     _generation++;
     busy = false;
-    cursor = null;
-    hasNext = true;
-    if (feedMode != null) mode = feedMode;
+    _pendingRefreshMode = feedMode ?? mode;
     await loadMore(replace: true);
   }
 
   Future<void> loadMore({bool replace = false}) async {
-    if (_disposed || busy || !hasNext) return;
+    final refreshing = replace || _pendingRefreshMode != null;
+    if (_disposed || busy || (!refreshing && !hasNext)) return;
+    if (refreshing) _pendingRefreshMode ??= mode;
+    final requestedMode = _pendingRefreshMode ?? mode;
     final generation = _generation;
     busy = true;
     failed = false;
     notifyListeners();
     try {
       final result = await gateway.feed(
-        after: replace ? null : cursor,
-        mode: mode,
+        after: refreshing ? null : cursor,
+        mode: requestedMode,
       );
       if (_disposed || generation != _generation) return;
+      if (result.hasNext && result.cursor == null) {
+        throw const FormatException('Next page requires a cursor');
+      }
       final unique = <String, PostData>{
-        if (!replace)
+        if (!refreshing)
           for (final post in posts) post.id: post,
         for (final post in result.posts) post.id: post,
       };
       posts = unique.values.toList();
       cursor = result.cursor;
       hasNext = result.hasNext;
+      mode = requestedMode;
+      _pendingRefreshMode = null;
     } on Exception {
       if (generation == _generation) failed = true;
     } finally {
