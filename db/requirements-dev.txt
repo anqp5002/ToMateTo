@@ -4,3 +4,4 @@ ruff>=0.8,<1
 mypy>=1.13,<2
 setuptools>=68
 wheel>=0.43
+httpx>=0.28,<1
