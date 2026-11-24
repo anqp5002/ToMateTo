@@ -1,8 +1,7 @@
 """Dựng schema PostgreSQL cho test từ DDL nguyên văn của DOC 6.4-B.
 
-S8 r2 không có `db/`/migration (SPEC §2, §5): mỗi session test tạo database
-`tomateto_test` rồi dựng đúng các bảng cần cho T12–T17, T25 cùng bảng cha của
-chúng. Câu lệnh được trích **nguyên văn** từ khối `BEGIN DDL` trong
+Mỗi session test dựng các bảng T01–T04, T12–T17, T25 cùng bảng cha cần thiết.
+Câu lệnh được trích **nguyên văn** từ khối `BEGIN DDL` trong
 `docs/thiet_ke/6.4-B_ddl.md`; không sửa, không viết lại DDL.
 
 Hàm `apply_ddl` để TASK khác tái sử dụng.
@@ -22,6 +21,9 @@ DDL_DOCUMENT: Final = REPO_ROOT / "docs" / "thiet_ke" / "6.4-B_ddl.md"
 #: Bảng phục vụ T12–T17, T25 và bảng cha bắt buộc cho khóa ngoại của chúng.
 REQUIRED_TABLES: Final[tuple[str, ...]] = (
     "users",
+    "password_resets",
+    "revoked_tokens",
+    "user_devices",
     "dishes",
     "restaurants",
     "posts",
