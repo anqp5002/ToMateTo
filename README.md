@@ -15,6 +15,10 @@ git clone https://github.com/anqp5002/ToMateTo.git && cd ToMateTo
 # 2. Tạo .env từ mẫu (giá trị trong mẫu là GIÁ TRỊ GIẢ, đổi khi chạy thật)
 cp .env.example .env
 
+# Điền JWT_SECRET (ít nhất 32 byte) và OTP_PEPPER riêng trong .env.
+# Sinh từng giá trị: python -c "import secrets; print(secrets.token_urlsafe(32))"
+# Không commit .env. Backend dừng lúc startup nếu thiếu cấu hình Identity.
+
 # 3. Dựng PostgreSQL + backend (backend chờ Postgres healthy rồi mới chạy)
 docker compose up -d --build
 
@@ -59,6 +63,8 @@ Trên Windows PowerShell, `curl` là alias của `Invoke-WebRequest`; dùng `cur
 backend/    FastAPI + Strawberry GraphQL, pyproject.toml, tests/
 docs/       tài liệu theo sprint
 ```
+
+Phần nền nhóm 4.1: [Identity và Recovery](backend/app/business/identity/README.md).
 
 ## Cách làm việc
 

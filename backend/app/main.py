@@ -1,11 +1,24 @@
 """Điểm vào FastAPI của ToMateTo backend.
 
-S8 mới có `/health` (không chạm CSDL) và `/graphql` được thêm ở TASK 3.
+Khởi động kiểm cấu hình Identity bắt buộc; `/health` không chạm CSDL.
+Router GraphQL nghiệp vụ được tích hợp bởi nhóm API.
 """
+
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-app = FastAPI(title="ToMateTo API", version="0.1.0")
+from app.business.identity.config import IdentityConfig
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+    application.state.identity_config = IdentityConfig.from_env()
+    yield
+
+
+app = FastAPI(title="ToMateTo API", version="0.1.0", lifespan=lifespan)
 
 
 @app.get("/health")

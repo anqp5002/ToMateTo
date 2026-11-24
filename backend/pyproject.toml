@@ -10,6 +10,8 @@ dependencies = [
   "fastapi==0.115.6",
   "uvicorn[standard]==0.34.0",
   "strawberry-graphql==0.237.3",
+  # graphql-core 3.3 changes execute(), incompatible with this Strawberry version.
+  "graphql-core==3.2.7",
   "sqlalchemy==2.0.37",
   "psycopg[binary]==3.2.3",
   "pyjwt==2.10.1",
