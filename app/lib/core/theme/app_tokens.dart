@@ -13,6 +13,10 @@ abstract final class AppTokens {
   static const Color success = Color(0xFF225C43);
   static const Color successBackground = Color(0xFFE8F1EA);
   static const Color focus = Color(0xFF145CC4);
+  static const Color imageWarmStart = Color(0xFFE6AA74);
+  static const Color imageWarmEnd = Color(0xFFA6422F);
+  static const Color imageGoldStart = Color(0xFFE9C780);
+  static const Color imageGoldEnd = Color(0xFF947247);
   static const double titleWeb = 32;
   static const double titleMobile = 28;
   static const double brandSize = 24;
@@ -24,4 +28,7 @@ abstract final class AppTokens {
   static const double space16 = 16, space24 = 24, space32 = 32;
   static const double controlRadius = 12, panelRadius = 16, chipRadius = 99;
   static const double minTouch = 44;
+  static const double focusWidth = 3;
+  static const double maxContentWidth = 1120;
+  static const double feedImageHeight = 144, suggestionImageHeight = 176;
 }
