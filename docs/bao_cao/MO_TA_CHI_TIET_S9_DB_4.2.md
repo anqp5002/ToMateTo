@@ -90,11 +90,25 @@ Nếu mất phản hồi mutation, FE giữ form và chuyển outcomeUnknown; kh
 
 ## 7. Kiểm chứng và giới hạn tích hợp
 
-Backend đã chạy **39 test đạt** trên PostgreSQL/Python 3.11: hồi quy S8, upload HTTP, resize, rollback nhiều ảnh, Guest, cursor lỗi, block, hidden, URL avatar cũ, lỗi kho ảnh và toàn bộ 150 URL fixture. Ruff check/format đạt; mypy strict đạt 61 file. Có một cảnh báo deprecation của Starlette TestClient/httpx; chưa bỏ qua cảnh báo bằng cấu hình lọc. Không dùng thời gian pytest làm p95 API.
+Kết quả kiểm chứng thực tế sau đợt hoàn thiện S9 trên nhánh `feat/db-s9-content-core`:
 
-Flutter **33 test đạt**, analyze không có issue; gồm hồi quy refresh lỗi/trang cuối/đổi mode/kết quả muộn, outcomeUnknown và layout compose/detail 360×800. SDK ghim đúng revision FE `abaf9c523780a608bd46686fd5e53740a07077f8` (Flutter 3.47.7/Dart 3.13.5). Kiểm trên bản sao source cùng nội dung trong TEMP tên ASCII do SDK có lỗi LSP với đường dẫn Unicode. Theme dùng InkRipple thay cho shader InkSparkle thiếu asset ở môi trường test; không sửa SDK hoặc bỏ ca test. Chưa có Android SDK để xác nhận build/chạy Android, chưa đo 60 fps trên thiết bị.
+- **Lint & Type-check Backend** (`.s8-preparation/.venv`, Python 3.12.10): `ruff check` **đạt (0 lỗi)**, `ruff format --check` **đạt (66 files already formatted)**, `mypy --strict` **đạt (63 source files, 0 issues)**.
+- **Pytest Backend & DB** (Docker `db/compose.test.yaml`, Python 3.11 / PostgreSQL 16.14, database `tomateto_s8_test` trên `tmpfs`): **57/57 tests đạt** (`57 passed, 1 warning in 6.10s` — tăng 18 ca so với mốc 39 ca ban đầu nhờ bổ sung `test_api_errors.py`, `test_content_service.py` và các ca biên ở `test_content_api.py`). Có 1 cảnh báo deprecation của Starlette `TestClient`/`httpx`; không dùng thời gian pytest làm p95 API.
+- **Flutter** (`.tooling/flutter`, chạy qua ổ đĩa ánh xạ ASCII `subst X:`): `flutter analyze` **đạt (`No issues found!`)**, `flutter test` **đạt 39/39 tests** (tăng 6 ca so với mốc 33 ca ban đầu). Chưa có Android SDK để xác nhận build/chạy Android, chưa đo 60 fps trên thiết bị.
 
-Verifier B1 thật và B10 của Lead được tiêm vào `create_app`; mặc định verifier từ chối mọi token. Fixture token chỉ nằm trong test. Entry point cục bộ hiện phục vụ Guest; luồng ghi có test với verifier tiêm, chưa thể thay cho đăng nhập thật của nhóm Identity. Hạn mức upload 429 cần chính sách quota và cấu hình chung; chưa tự đặt số lượng tùy ý. Nền Profile/Social/Discovery thật còn cần nhóm tương ứng cung cấp để kiểm xuyên suốt.
+Verifier B1 thật và B10 của Lead được tiêm vào `create_app`; mặc định verifier từ chối mọi token. Fixture token chỉ nằm trong test. Entry point cục bộ hiện phục vụ Guest; luồng ghi có test với verifier tiêm, chưa thể thay cho đăng nhập thật của nhóm Identity. Hạn mức upload 429 giữ sẵn hook `upload_guard` trong `run_content.py` (TODO chờ chính sách quota và cấu hình chung). Nền Profile/Social/Discovery thật còn cần nhóm tương ứng cung cấp để kiểm xuyên suốt.
+
+## 10. Hoàn thiện phạm vi S9 & Tồn đọng chuyển S10
+
+### 10.1. Đã hoàn thiện trong phạm vi S9
+- **Backend API & Bootstrap:** Đăng ký handler `RequestValidationError` → HTTP 400 `VALIDATION_FAILED` kèm `X-Request-Id`; `GET /media/{asset_id}` bắt `ValueError` từ `storage.path()` → `NOT_AVAILABLE`; `input_value()` ánh xạ `fieldErrors` chi tiết theo camelCase; `post(id)` chuyển sang nullable (`Post | None`) và kiểm miền `BIGINT`; `.strip()` `CORS_ORIGINS`; khai báo trực tiếp `pydantic` và `python-multipart` trong `backend/pyproject.toml`.
+- **Backend Core:** `FeedQueryService.latest` bỏ double-hydration qua `PostProjection.list_latest_ids`; chặn `dish_name` chỉ gồm combining marks (`"\u0301"`) và `id`/`restaurant_id` vượt miền `BIGINT`; bật `ConfigDict(extra="forbid")` cho `RecipeInput`; bổ sung test xóa file bù khi DB lỗi, cursor chéo viewer, rollback `consume` fail, upload JPEG/WebP/EXIF.
+- **Flutter:** `upload()` xử lý an toàn body rỗng/non-JSON và `AppFailure` ánh xạ `PAYLOAD_TOO_LARGE` (413), `UNSUPPORTED_MEDIA_TYPE` (415); `ComposeScreen` disable nút đăng khi ảnh busy/lỗi, bỏ gửi chuỗi rỗng/recipe rỗng, giữ `AppFailure` trên `UploadDraft` và `FeedController`; đưa banner lỗi `loadMore` xuống cuối list; `PostDetailScreen` ẩn mục `'Công thức'` khi rỗng và hiển thị `restaurant`; xử lý an toàn `data.post == null`.
+
+### 10.2. Tồn đọng chuyển S10 (ngoài phạm vi S9)
+- `PostRepository.replace_images` (`post_repo.py:55` dùng `values(i)`) và `MediaCleanupRepository` (`media_cleanup_repo.py:59-77` chưa kiểm `rowcount`): không ảnh hưởng S9 `create_post` (do đã cấp sẵn `allocate_id`), chuyển xử lý cùng `updatePost`/`deletePost` và worker `cleanupOrphanMedia` ở S10.
+- `myPosts` (điểm nối 9) và đối soát `outcomeUnknown` bằng `myPosts`, `TRENDING` feed (điểm nối 11), `updatePost`/`deletePost`/cleanup worker thật: thuộc phạm vi S10.
+- Chính sách rate limit `429 RATE_LIMITED` (`upload_guard`) và đồng bộ `PublicUser.displayName` nullable (O4) với FE/BE/Lead khi tích hợp.
 
 ## 8. Chạy và giải thích
 

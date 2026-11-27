@@ -9,7 +9,9 @@ final class UploadDraft {
   final Uint8List bytes;
   final String name;
   String? uploadId;
-  bool busy = false, failed = false;
+  bool busy = false;
+  AppFailure? failure;
+  bool get failed => failure != null;
 }
 
 class PostEditorController extends ChangeNotifier {
@@ -34,13 +36,15 @@ class PostEditorController extends ChangeNotifier {
   Future<void> upload(UploadDraft image) async {
     if (image.busy || busy || outcomeUnknown) return;
     image.busy = true;
-    image.failed = false;
+    image.failure = null;
     emit();
     try {
       final result = await gateway.upload(image.bytes, image.name);
       image.uploadId = result['uploadId']! as String;
+    } on ContentFailure catch (error) {
+      image.failure = error.failure;
     } on Exception {
-      image.failed = true;
+      image.failure = AppFailure(FailureKind.serviceUnavailable);
     } finally {
       image.busy = false;
       emit();
@@ -55,9 +59,10 @@ class PostEditorController extends ChangeNotifier {
   }
 
   Future<PostData?> submit(JsonMap fields) async {
-    if (busy ||
-        outcomeUnknown ||
-        images.any((i) => i.busy || i.uploadId == null)) {
+    if (busy || outcomeUnknown) return null;
+    if (images.any((i) => i.busy || i.failed || i.uploadId == null)) {
+      failure = AppFailure(FailureKind.validation);
+      emit();
       return null;
     }
     busy = true;

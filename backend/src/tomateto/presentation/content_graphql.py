@@ -16,7 +16,7 @@ from tomateto.business.content.feed_service import FeedQueryService
 from tomateto.business.content.post_service import PostLifecycleService
 from tomateto.dataaccess.content.post_projection import PostView
 from tomateto.presentation.errors import ErrorMapper
-from tomateto.shared.exceptions import DomainError
+from tomateto.shared.exceptions import DomainError, FieldError, ValidationError
 from tomateto.shared.identity import Principal
 from tomateto.shared.pagination import PageRequest, RepositoryPage
 
@@ -208,11 +208,29 @@ def request_page(page: PageInput | None) -> PageRequest:
     return PageRequest.of(page.first, page.after) if page else PageRequest()
 
 
+_MAX_BIGINT = 9_223_372_036_854_775_807
+
+
+def _camel_case(segment: str | int) -> str:
+    if isinstance(segment, int):
+        return str(segment)
+    parts = segment.split("_")
+    return parts[0] + "".join(part[:1].upper() + part[1:] for part in parts[1:] if part)
+
+
 def input_value(value: CreateInput) -> PostInput:
     try:
         return PostInput.model_validate(strawberry.asdict(value))
-    except InputValidationError:
-        raise invalid("input") from None
+    except InputValidationError as exc:
+        field_errors = [
+            FieldError(
+                field=".".join(_camel_case(part) for part in err["loc"]) or "input",
+                code="INVALID_VALUE",
+                message="Invalid input",
+            )
+            for err in exc.errors()
+        ]
+        raise ValidationError(field_errors=field_errors) from None
 
 
 @strawberry.type
@@ -233,14 +251,16 @@ class Query:
         return mapped(execute)
 
     @strawberry.field
-    def post(self, info: Info[ContentContext, None], id: strawberry.ID) -> Post:
-        def execute() -> Post:
+    def post(self, info: Info[ContentContext, None], id: strawberry.ID) -> Post | None:
+        def execute() -> Post | None:
             ctx = info.context
             ctx.verify()
             try:
                 post_id = int(id)
             except ValueError:
                 raise invalid("id") from None
+            if not (1 <= post_id <= _MAX_BIGINT):
+                raise invalid("id")
             return post_type(FeedQueryService(ctx.session).get_post(post_id, ctx.principal))
 
         return mapped(execute)

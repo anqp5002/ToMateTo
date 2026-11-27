@@ -20,6 +20,7 @@ class ImageInput(BaseModel):
 
 
 class RecipeInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     ingredients: list[str] | None = None
     instructions: list[str] | None = None
 
@@ -39,8 +40,17 @@ class PostInput(BaseModel):
     images: list[ImageInput] | None = None
 
 
+MAX_BIGINT = 9_223_372_036_854_775_807
+
+
 def invalid(field: str, code: str = "INVALID_VALUE") -> ValidationError:
     return ValidationError(field_errors=[FieldError(field, code, "Invalid input")])
+
+
+def validate_bigint(value: int, field: str) -> None:
+    """Ensure integer identifiers fit PostgreSQL signed BIGINT (>= 1)."""
+    if type(value) is not int or not (1 <= value <= MAX_BIGINT):
+        raise invalid(field)
 
 
 class WritePolicy(Protocol):

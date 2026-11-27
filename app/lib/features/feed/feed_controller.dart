@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../core/failure/app_failure.dart';
 import '../../repositories/content_repository.dart';
 
 final class FeedController extends ChangeNotifier {
@@ -7,7 +8,9 @@ final class FeedController extends ChangeNotifier {
   final ContentGateway gateway;
   List<PostData> posts = [];
   String? cursor;
-  bool busy = false, hasNext = true, failed = false;
+  bool busy = false, hasNext = true;
+  AppFailure? failure;
+  bool get failed => failure != null;
   String mode = 'LATEST';
   int _generation = 0;
   bool _disposed = false;
@@ -27,7 +30,7 @@ final class FeedController extends ChangeNotifier {
     final requestedMode = _pendingRefreshMode ?? mode;
     final generation = _generation;
     busy = true;
-    failed = false;
+    failure = null;
     notifyListeners();
     try {
       final result = await gateway.feed(
@@ -48,8 +51,12 @@ final class FeedController extends ChangeNotifier {
       hasNext = result.hasNext;
       mode = requestedMode;
       _pendingRefreshMode = null;
+    } on ContentFailure catch (error) {
+      if (generation == _generation) failure = error.failure;
     } on Exception {
-      if (generation == _generation) failed = true;
+      if (generation == _generation) {
+        failure = AppFailure(FailureKind.serviceUnavailable);
+      }
     } finally {
       if (!_disposed && generation == _generation) {
         busy = false;

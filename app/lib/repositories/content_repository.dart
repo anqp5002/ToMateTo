@@ -103,7 +103,11 @@ final class GraphQLContentRepository implements ContentGateway {
         variables: {'id': id},
       ),
     );
-    return PostData(data['post']! as JsonMap);
+    final rawPost = data['post'];
+    if (rawPost is! JsonMap) {
+      throw ContentFailure(AppFailure(FailureKind.notFound));
+    }
+    return PostData(rawPost);
   }
 
   @override
@@ -140,9 +144,22 @@ final class GraphQLContentRepository implements ContentGateway {
       final response = await http.Response.fromStream(
         await client.send(request).timeout(const Duration(seconds: 30)),
       ).timeout(const Duration(seconds: 30));
-      final data = jsonDecode(utf8.decode(response.bodyBytes)) as JsonMap;
-      if (response.statusCode == 201) return data;
-      final error = data['error'];
+      JsonMap? data;
+      final bodyText =
+          utf8.decode(response.bodyBytes, allowMalformed: true).trim();
+      if (bodyText.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(bodyText);
+          if (decoded is JsonMap) data = decoded;
+        } on FormatException {
+          // Non-JSON responses (e.g. proxy 413/415/502/401) still map by status.
+        }
+      }
+      if (response.statusCode == 201) {
+        if (data != null) return data;
+        throw ContentFailure(AppFailure(FailureKind.serviceUnavailable));
+      }
+      final error = data?['error'];
       throw ContentFailure(
         AppFailure.fromTransport(
           TransportResponse(
@@ -157,8 +174,6 @@ final class GraphQLContentRepository implements ContentGateway {
     } on TimeoutException {
       throw ContentFailure(AppFailure(FailureKind.serviceUnavailable));
     } on http.ClientException {
-      throw ContentFailure(AppFailure(FailureKind.serviceUnavailable));
-    } on FormatException {
       throw ContentFailure(AppFailure(FailureKind.serviceUnavailable));
     }
   }

@@ -2,11 +2,9 @@
 
 from sqlalchemy.orm import Session
 
-from tomateto.business.content.contracts import invalid
+from tomateto.business.content.contracts import invalid, validate_bigint
 from tomateto.dataaccess.content.post_projection import PostProjection, PostView
 from tomateto.dataaccess.content.post_repo import PostRepository
-from tomateto.domain.content.paging import PageRequest as RepositoryPageRequest
-from tomateto.domain.content.paging import PostCursor
 from tomateto.shared.exceptions import DomainError
 from tomateto.shared.identity import Principal
 from tomateto.shared.pagination import CursorCodec, Edge, LatestCursor, PageRequest, RepositoryPage
@@ -22,32 +20,37 @@ class FeedQueryService:
     ) -> RepositoryPage[PostView]:
         viewer = principal.user_id if principal else None
         scope = f"content:{author_id}:{viewer}"
-        after = None
+        after_time, after_id = None, None
         if page.after:
             cursor = self.codec.decode(page.after, "LATEST", scope=scope)
             if not isinstance(cursor, LatestCursor) or cursor.item_id <= 0:
                 raise invalid("page.after", "CURSOR_INVALID")
-            after = PostCursor(cursor.created_at, cursor.item_id)
-        request = RepositoryPageRequest(page.first, after)
-        repo = PostRepository(self.session)
-        result = (
-            repo.list_by_author(author_id, request, viewer)
-            if author_id is not None
-            else repo.list_feed("LATEST", request, viewer)
+            after_time, after_id = cursor.created_at, cursor.item_id
+        projection = PostProjection(self.session)
+        items, has_next_page = projection.list_latest_ids(
+            page.first,
+            viewer,
+            author_id=author_id,
+            after_time=after_time,
+            after_id=after_id,
         )
-        views = PostProjection(self.session).read([item.id for item in result.items], viewer)
+        if not items:
+            return RepositoryPage([], False)
+        views = projection.read([post_id for post_id, _ in items], viewer)
         return RepositoryPage(
             [
                 Edge(
-                    self.codec.encode_latest(item.created_at, item.id, scope=scope), views[item.id]
+                    self.codec.encode_latest(created_at, post_id, scope=scope),
+                    views[post_id],
                 )
-                for item in result.items
-                if item.id in views
+                for post_id, created_at in items
+                if post_id in views
             ],
-            result.has_next_page,
+            has_next_page,
         )
 
     def get_post(self, post_id: int, principal: Principal | None) -> PostView:
+        validate_bigint(post_id, "id")
         record = PostRepository(self.session).find_by_id(post_id)
         if record is None:
             raise DomainError("NOT_FOUND")

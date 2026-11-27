@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../core/failure/app_failure.dart';
 import '../core/session/session_store.dart';
 import '../repositories/content_repository.dart';
 import 'compose/post_editor_controller.dart';
@@ -33,10 +34,12 @@ class _ContentHomeState extends State<ContentHome> {
       await context.push<void>('/login');
       return;
     }
-    final created = await Navigator.of(context).push<PostData>(
+    final result = await Navigator.of(context).push<Object?>(
       MaterialPageRoute(builder: (_) => ComposeScreen(gateway: widget.gateway)),
     );
-    if (created != null && mounted) await controller.refresh();
+    if ((result is PostData || result == true) && mounted) {
+      await controller.refresh();
+    }
   }
 
   @override
@@ -69,12 +72,10 @@ class _ContentHomeState extends State<ContentHome> {
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
-                if (controller.failed)
+                if (controller.posts.isEmpty && controller.failed)
                   SliverToBoxAdapter(
                     child: TextButton(
-                      onPressed: () => controller.loadMore(
-                        replace: controller.posts.isEmpty,
-                      ),
+                      onPressed: () => controller.loadMore(replace: true),
                       child: const Text('Chưa tải được bài viết. Thử lại'),
                     ),
                   ),
@@ -176,6 +177,13 @@ class _ContentHomeState extends State<ContentHome> {
                       child: Center(child: CircularProgressIndicator()),
                     ),
                   ),
+                if (controller.posts.isNotEmpty && controller.failed)
+                  SliverToBoxAdapter(
+                    child: TextButton(
+                      onPressed: () => controller.loadMore(),
+                      child: const Text('Chưa tải được bài viết. Thử lại'),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -220,6 +228,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           return const Center(child: CircularProgressIndicator());
         }
         final recipe = post.json['recipe'] as Map<String, Object?>?;
+        final ingredients =
+            recipe?['ingredients'] as List<Object?>? ?? const [];
+        final instructions =
+            recipe?['instructions'] as List<Object?>? ?? const [];
+        final restaurant = post.json['restaurant'] as Map<String, Object?>?;
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
@@ -247,19 +260,25 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             Text(post.author['displayName'] as String? ?? 'Người dùng'),
             Text(post.caption),
             Text(post.address),
+            if (restaurant != null) ...[
+              if (restaurant['name'] case final String name
+                  when name.isNotEmpty)
+                Text('Quán: $name'),
+              if (restaurant['address'] case final String addr
+                  when addr.isNotEmpty)
+                Text('Địa chỉ quán: $addr'),
+            ],
             if (post.priceRange != null)
               Text(priceLabels[post.priceRange] ?? post.priceRange!),
             if (post.json['latitude'] != null)
               Text(
                 'Vị trí: ${post.json['latitude']}, ${post.json['longitude']}',
               ),
-            if (recipe != null) ...[
+            if (ingredients.isNotEmpty || instructions.isNotEmpty) ...[
               const SizedBox(height: 16),
               const Text('Công thức'),
-              for (final line in recipe['ingredients'] as List<Object?>? ?? [])
-                Text('• $line'),
-              for (final line in recipe['instructions'] as List<Object?>? ?? [])
-                Text('$line'),
+              for (final line in ingredients) Text('• $line'),
+              for (final line in instructions) Text('$line'),
             ],
           ],
         );
@@ -327,22 +346,30 @@ class _ComposeScreenState extends State<ComposeScreen> {
 
   Future<void> submit() async {
     if (!form.currentState!.validate()) return;
+    final trimmedCaption = caption.text.trim();
+    final trimmedAddress = address.text.trim();
+    final trimmedRestaurant = restaurant.text.trim();
+    final ingredientList = ingredients.text
+        .split('\n')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    final instructionList = steps.text
+        .split('\n')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
     final post = await controller.submit({
       'dishName': name.text.trim(),
-      'caption': caption.text,
-      'address': address.text,
-      'restaurantName': restaurant.text,
-      'priceRange': price,
-      'recipe': {
-        'ingredients': ingredients.text
-            .split('\n')
-            .where((s) => s.trim().isNotEmpty)
-            .toList(),
-        'instructions': steps.text
-            .split('\n')
-            .where((s) => s.trim().isNotEmpty)
-            .toList(),
-      },
+      if (trimmedCaption.isNotEmpty) 'caption': trimmedCaption,
+      if (trimmedAddress.isNotEmpty) 'address': trimmedAddress,
+      if (trimmedRestaurant.isNotEmpty) 'restaurantName': trimmedRestaurant,
+      if (price != null) 'priceRange': price,
+      if (ingredientList.isNotEmpty || instructionList.isNotEmpty)
+        'recipe': {
+          'ingredients': ingredientList,
+          'instructions': instructionList,
+        },
     });
     if (mounted && post != null) Navigator.of(context).pop(post);
   }
@@ -413,11 +440,21 @@ class _ComposeScreenState extends State<ComposeScreen> {
                           const Icon(Icons.broken_image),
                     ),
                     if (image.busy) const LinearProgressIndicator(),
-                    if (image.failed)
+                    if (image.failed) ...[
+                      Text(
+                        switch (image.failure?.kind) {
+                          FailureKind.validation =>
+                            'Ảnh không hợp lệ hoặc vượt quá 10 MB.',
+                          FailureKind.unauthenticated =>
+                            'Phiên đăng nhập đã hết hạn.',
+                          _ => 'Không tải được ảnh. Vui lòng thử lại.',
+                        },
+                      ),
                       TextButton(
                         onPressed: () => controller.upload(image),
                         child: const Text('Tải ảnh lại'),
                       ),
+                    ],
                     TextButton(
                       onPressed: controller.busy || controller.outcomeUnknown
                           ? null
@@ -441,7 +478,7 @@ class _ComposeScreenState extends State<ComposeScreen> {
                 'Chưa nhận được kết quả đăng bài. Hãy kiểm tra bài của bạn trước khi đăng lại.',
               ),
               TextButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => Navigator.of(context).pop(true),
                 child: const Text('Kiểm tra bài viết của bạn'),
               ),
             ] else if (controller.failure != null)
@@ -449,7 +486,12 @@ class _ComposeScreenState extends State<ComposeScreen> {
                 'Chưa đăng được bài. Vui lòng kiểm tra dữ liệu và thử lại.',
               ),
             FilledButton(
-              onPressed: controller.busy || controller.outcomeUnknown
+              onPressed:
+                  controller.busy ||
+                      controller.outcomeUnknown ||
+                      controller.images.any(
+                        (i) => i.busy || i.failed || i.uploadId == null,
+                      )
                   ? null
                   : submit,
               child: Text(controller.busy ? 'Đang đăng…' : 'Đăng bài'),

@@ -6,6 +6,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
@@ -81,6 +82,16 @@ def create_app(
         return JSONResponse(
             mapper.to_http_body(error),
             status_code=500,
+            headers={"X-Request-Id": request.state.request_id},
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def request_validation_error(
+        request: Request, error: RequestValidationError
+    ) -> JSONResponse:
+        return JSONResponse(
+            mapper.to_http_body(DomainError("VALIDATION_FAILED")),
+            status_code=400,
             headers={"X-Request-Id": request.state.request_id},
         )
 
@@ -186,7 +197,10 @@ def create_app(
                 )
             if not permitted:
                 raise DomainError("NOT_AVAILABLE")
-            path = storage.path(row["storage_key"])
+            try:
+                path = storage.path(row["storage_key"])
+            except ValueError:
+                raise DomainError("NOT_AVAILABLE") from None
             if not path.is_file():
                 raise DomainError("NOT_AVAILABLE")
             return FileResponse(

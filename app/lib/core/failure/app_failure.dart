@@ -56,9 +56,13 @@ final class AppFailure {
       'RATE_LIMITED' => FailureKind.rateLimited,
       'INTEGRATION_UNAVAILABLE' => FailureKind.serviceUnavailable,
       'INTERNAL_ERROR' => FailureKind.internalError,
+      'PAYLOAD_TOO_LARGE' => FailureKind.validation,
+      'UNSUPPORTED_MEDIA_TYPE' => FailureKind.validation,
       _ => switch (response.status) {
         401 => FailureKind.unauthenticated,
         403 => FailureKind.forbidden,
+        413 => FailureKind.validation,
+        415 => FailureKind.validation,
         429 => FailureKind.rateLimited,
         _ when response.issue == TransportIssue.missingSession =>
           FailureKind.unauthenticated,
@@ -70,6 +74,7 @@ final class AppFailure {
               : FailureKind.serviceUnavailable,
         _ when mutation && (response.status ?? 0) >= 500 =>
           FailureKind.outcomeUnknown,
+        _ when (response.status ?? 0) >= 500 => FailureKind.serviceUnavailable,
         _
             when mutation &&
                 (response.status ?? 0) >= 200 &&

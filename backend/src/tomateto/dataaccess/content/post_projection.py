@@ -73,10 +73,54 @@ AND (CAST(:viewer AS bigint) IS NULL OR NOT EXISTS(SELECT 1 FROM user_blocks b
  OR (b.blocked_id=:viewer AND b.blocker_id=p.user_id)))
 """
 
+LATEST_IDS_SQL = """
+SELECT p.id, p.created_at
+FROM posts p
+WHERE p.is_hidden = false
+  AND (CAST(:author_id AS bigint) IS NULL OR p.user_id = CAST(:author_id AS bigint))
+  AND (CAST(:viewer_id AS bigint) IS NULL OR NOT EXISTS (
+    SELECT 1 FROM user_blocks b
+    WHERE (b.blocker_id = CAST(:viewer_id AS bigint) AND b.blocked_id = p.user_id)
+       OR (b.blocker_id = p.user_id AND b.blocked_id = CAST(:viewer_id AS bigint))
+  ))
+  AND (
+    CAST(:after_time AS timestamptz) IS NULL
+    OR (p.created_at, p.id) < (CAST(:after_time AS timestamptz), CAST(:after_id AS bigint))
+  )
+ORDER BY p.created_at DESC, p.id DESC
+LIMIT :limit
+"""
+
 
 class PostProjection:
     def __init__(self, session: Session) -> None:
         self.session = session
+
+    def list_latest_ids(
+        self,
+        first: int,
+        viewer_id: int | None,
+        *,
+        author_id: int | None = None,
+        after_time: datetime | None = None,
+        after_id: int | None = None,
+    ) -> tuple[list[tuple[int, datetime]], bool]:
+        """Return lightweight (post_id, created_at) keys and has_next_page via ix_posts_feed."""
+        rows = list(
+            self.session.execute(
+                text(LATEST_IDS_SQL),
+                {
+                    "viewer_id": viewer_id,
+                    "author_id": author_id,
+                    "after_time": after_time,
+                    "after_id": after_id,
+                    "limit": first + 1,
+                },
+            ).mappings()
+        )
+        has_next_page = len(rows) > first
+        items = [(int(row["id"]), row["created_at"]) for row in rows[:first]]
+        return items, has_next_page
 
     def read(
         self, ids: list[int], viewer_id: int | None, *, own_hidden: bool = False

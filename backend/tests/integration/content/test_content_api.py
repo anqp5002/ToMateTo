@@ -4,6 +4,7 @@ from collections.abc import Iterator
 from datetime import UTC, datetime
 from io import BytesIO
 from pathlib import Path
+from typing import Any
 from uuid import UUID
 
 import pytest
@@ -12,6 +13,7 @@ from PIL import Image
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 from tomateto.bootstrap.content_app import create_app
+from tomateto.dataaccess.content.media_upload_repo import MediaUploadRepository
 from tomateto.dataaccess.schema import media_assets, posts, user_blocks, users
 from tomateto.integration.media_storage import LocalMediaStorage
 from tomateto.shared.exceptions import AuthorizationError
@@ -230,3 +232,121 @@ def test_storage_failure_preserves_other_flows(
     assert response.status_code == 503
     assert "fixture" not in response.text
     assert "errors" not in create(client)
+
+
+def image_bytes(fmt: str, width: int, height: int, *, orientation: int | None = None) -> bytes:
+    target = BytesIO()
+    image = Image.new("RGB", (width, height), "blue")
+    if orientation is not None:
+        exif = Image.Exif()
+        exif[0x0112] = orientation
+        image.save(target, format=fmt, exif=exif.tobytes())
+    else:
+        image.save(target, format=fmt)
+    return target.getvalue()
+
+
+def test_upload_compensates_disk_when_db_write_fails(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def fail_db(self: MediaUploadRepository, upload: object) -> object:
+        raise RuntimeError("db outage")
+
+    monkeypatch.setattr(MediaUploadRepository, "create", fail_db)
+    with pytest.raises(RuntimeError, match="db outage"):
+        client.post(
+            "/media/uploads",
+            headers={"Authorization": "Bearer test-a"},
+            data={"purpose": "POST"},
+            files={"file": ("a.png", png())},
+        )
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_cursor_cross_viewer_rejected(client: TestClient) -> None:
+    for i in range(3):
+        assert "errors" not in create(client, f"Bún {i}")
+    query = """query($page:PageInput){feed(mode:LATEST,page:$page){
+      edges{node{id}} pageInfo{endCursor hasNextPage}}}"""
+    first = client.post(
+        "/graphql",
+        headers={"Authorization": "Bearer test-a"},
+        json={"query": query, "variables": {"page": {"first": 1}}},
+    ).json()["data"]["feed"]
+    cursor_a = first["pageInfo"]["endCursor"]
+    assert cursor_a
+    for headers in [{"Authorization": "Bearer test-b"}, {}]:
+        response = client.post(
+            "/graphql",
+            headers=headers,
+            json={"query": query, "variables": {"page": {"after": cursor_a}}},
+        ).json()
+        error = response["errors"][0]
+        assert error["extensions"]["code"] == "VALIDATION_FAILED"
+        assert error["extensions"]["fieldErrors"][0]["code"] == "CURSOR_INVALID"
+
+
+def test_create_post_rollbacks_on_consume_failure(client: TestClient, session: Session) -> None:
+    def upload_as(token: str, purpose: str) -> str:
+        res = client.post(
+            "/media/uploads",
+            headers={"Authorization": f"Bearer {token}"},
+            data={"purpose": purpose},
+            files={"file": ("a.png", png())},
+        )
+        assert res.status_code == 201
+        return str(res.json()["uploadId"])
+
+    valid_a = upload_as("test-a", "POST")
+    other_owner = upload_as("test-b", "POST")
+    wrong_purpose = upload_as("test-a", "AVATAR")
+    expired = upload_as("test-a", "POST")
+    session.execute(
+        update(media_assets)
+        .where(media_assets.c.id == UUID(expired))
+        .values(
+            created_at=datetime(2029, 12, 30, tzinfo=UTC),
+            expires_at=datetime(2029, 12, 31, tzinfo=UTC),
+        )
+    )
+    before = session.scalar(select(func.count()).select_from(posts))
+    for bad_id in (other_owner, wrong_purpose, expired):
+        res = create(
+            client,
+            images=[
+                {"uploadId": valid_a, "position": 0},
+                {"uploadId": bad_id, "position": 1},
+            ],
+        )
+        assert res["errors"]
+        assert session.scalar(select(func.count()).select_from(posts)) == before
+        state = session.scalar(
+            select(media_assets.c.state).where(media_assets.c.id == UUID(valid_a))
+        )
+        assert state == "PENDING"
+
+
+def test_create_rejects_combining_marks_dish_name(client: TestClient) -> None:
+    res: Any = create(client, "\u0301")
+    error = res["errors"][0]
+    assert error["extensions"]["code"] == "VALIDATION_FAILED"
+    assert error["extensions"]["fieldErrors"][0]["field"] == "dishName"
+    assert error["extensions"]["fieldErrors"][0]["code"] == "REQUIRED_FIELD"
+
+
+def test_upload_jpeg_webp_and_exif_orientation(client: TestClient) -> None:
+    cases = [
+        ("photo.jpg", image_bytes("JPEG", 2400, 1200), (1600, 800)),
+        ("photo.webp", image_bytes("WEBP", 1000, 2000), (800, 1600)),
+        ("rotated.jpg", image_bytes("JPEG", 1200, 800, orientation=6), (800, 1200)),
+    ]
+    for filename, payload, expected in cases:
+        res = client.post(
+            "/media/uploads",
+            headers={"Authorization": "Bearer test-a"},
+            data={"purpose": "POST"},
+            files={"file": (filename, payload)},
+        )
+        assert res.status_code == 201
+        body = res.json()
+        assert (body["width"], body["height"]) == expected

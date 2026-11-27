@@ -4,22 +4,34 @@ import math
 
 from sqlalchemy.orm import Session
 
-from tomateto.business.content.contracts import PostInput, TimeSource, WritePolicy, invalid
+from tomateto.business.content.contracts import (
+    PostInput,
+    TimeSource,
+    WritePolicy,
+    invalid,
+    validate_bigint,
+)
 from tomateto.dataaccess.content.dish_repo import DishRepository
 from tomateto.dataaccess.content.media_upload_repo import MediaUploadRepository, UploadRejectedError
 from tomateto.dataaccess.content.post_projection import PostProjection
 from tomateto.dataaccess.content.post_repo import PostRepository
 from tomateto.dataaccess.content.restaurant_repo import RestaurantRepository
+from tomateto.domain.content.normalization import normalize_name
 from tomateto.domain.content.records import PostImageRecord, PostRecord
 from tomateto.shared.identity import Principal
 from tomateto.shared.transaction import TransactionManager
 
 
 def validate_input(value: PostInput, *, creating: bool) -> None:
-    if (creating and value.dish_name is None) or (
-        value.dish_name is not None and not value.dish_name.strip()
-    ):
+    if creating and value.dish_name is None:
         raise invalid("dishName", "REQUIRED_FIELD")
+    if value.dish_name is not None:
+        try:
+            normalize_name(value.dish_name)
+        except ValueError:
+            raise invalid("dishName", "REQUIRED_FIELD") from None
+    if value.restaurant_id is not None:
+        validate_bigint(value.restaurant_id, "restaurantId")
     for field, number, limit in [
         ("latitude", value.latitude, 90),
         ("longitude", value.longitude, 180),

@@ -39,6 +39,8 @@ void main() {
       'RATE_LIMITED': FailureKind.rateLimited,
       'INTEGRATION_UNAVAILABLE': FailureKind.serviceUnavailable,
       'INTERNAL_ERROR': FailureKind.internalError,
+      'PAYLOAD_TOO_LARGE': FailureKind.validation,
+      'UNSUPPORTED_MEDIA_TYPE': FailureKind.validation,
     };
     for (final entry in cases.entries) {
       test('preserves ${entry.key} from HTTP 200', () {
@@ -78,6 +80,27 @@ void main() {
       );
       expect(
         AppFailure.fromTransport(response, mutation: true).kind,
+        FailureKind.outcomeUnknown,
+      );
+    });
+    test('maps HTTP 413, 415 and non-mutation 5xx status codes', () {
+      expect(
+        AppFailure.fromTransport(const TransportResponse(status: 413)).kind,
+        FailureKind.validation,
+      );
+      expect(
+        AppFailure.fromTransport(const TransportResponse(status: 415)).kind,
+        FailureKind.validation,
+      );
+      expect(
+        AppFailure.fromTransport(const TransportResponse(status: 502)).kind,
+        FailureKind.serviceUnavailable,
+      );
+      expect(
+        AppFailure.fromTransport(
+          const TransportResponse(status: 502),
+          mutation: true,
+        ).kind,
         FailureKind.outcomeUnknown,
       );
     });
