@@ -40,6 +40,11 @@ final class NavigationContext {
     _pendingIntent = intent;
   }
 
+  void rememberTarget(InternalTarget target) {
+    _target = target;
+    _pendingIntent = null;
+  }
+
   InternalTarget resume(bool authenticated) {
     final InternalTarget destination = _target ?? feed;
     if (authenticated) clear();

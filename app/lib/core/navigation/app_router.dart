@@ -18,6 +18,8 @@ String requireAuth({
 GoRouter buildAppRouter({
   required NavigationContext navigation,
   required WidgetBuilder home,
+  Widget Function(BuildContext, GoRouterState)? authPage,
+  Widget Function(BuildContext, GoRouterState, String)? resourcePage,
 }) {
   final Map<String, String> auth = {
     '/login': 'Đăng nhập',
@@ -32,6 +34,10 @@ GoRouter buildAppRouter({
         GoRoute(
           path: entry.key,
           builder: (context, state) {
+            if (authPage != null &&
+                (entry.key == '/login' || entry.key == '/register')) {
+              return authPage(context, state);
+            }
             if (entry.key == '/reset-password') {
               // S10 will inject a verified reset grant into a real flow.
               return PlaceholderScreen(
@@ -53,6 +59,7 @@ GoRouter buildAppRouter({
         GoRoute(
           path: path,
           builder: (context, state) =>
+              resourcePage?.call(context, state, title) ??
               PlaceholderScreen(title: title, onBack: () => context.go('/')),
         ),
     ],

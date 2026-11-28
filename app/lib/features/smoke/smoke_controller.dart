@@ -37,6 +37,11 @@ final class SmokeController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void reset() {
+    _state = ListState<bool>(generation: _state.generation + 1);
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _state = _state.copyWith(generation: _state.generation + 1);
