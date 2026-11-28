@@ -1,9 +1,10 @@
 [project]
 name = "tomateto-backend"
 version = "0.1.0"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
   "fastapi>=0.115,<1",
+  "httpx>=0.28,<1",
   "strawberry-graphql[fastapi]>=0.341.2,<0.342",
   "SQLAlchemy>=2.0,<2.1",
   "psycopg[binary]>=3.2,<4",
@@ -13,18 +14,19 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "pytest>=8,<10",
-  "httpx>=0.28,<1",
   "ruff>=0.14,<1",
   "mypy>=1.14,<3",
 ]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 src = ["app", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "N", "UP", "B", "S", "C4"]
+# Keep the existing generic syntax used by the S8 pagination contract.
+ignore = ["UP046"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101"]
@@ -33,14 +35,16 @@ select = ["E", "W", "F", "I", "N", "UP", "B", "S", "C4"]
 quote-style = "double"
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
+mypy_path = "src"
+explicit_package_bases = true
 strict = true
 warn_unused_ignores = true
 files = ["app", "tests"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = [".", "src"]
 addopts = "-ra"
 markers = ["integration: requires a dedicated PostgreSQL 16 test database"]
 
@@ -49,4 +53,5 @@ requires = ["setuptools>=70"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["app*"]
+where = [".", "src"]
+include = ["app*", "tomateto*"]

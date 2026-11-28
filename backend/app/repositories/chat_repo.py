@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Literal
 
-from sqlalchemy import delete, exists, func, select, update
+from sqlalchemy import delete, exists, func, select, text, update
 from sqlalchemy.orm import Session
 
 from app.core.clock import Clock
@@ -45,6 +45,22 @@ class SessionSummary:
     last_message_at: datetime | None
 
 
+@dataclass(frozen=True)
+class PublicContextRow:
+    post_id: int
+    dish_id: int
+    dish_name: str
+    caption: str
+    restaurant_id: int | None
+    restaurant_name: str | None
+
+
+@dataclass(frozen=True)
+class HistoryContextRow:
+    role: str
+    content: str
+
+
 def _require_aware(now: datetime) -> None:
     if now.utcoffset() is None:
         raise ValidationError(message="Thời điểm xử lý trợ lý phải có múi giờ.")
@@ -69,6 +85,69 @@ class AssistantConversationRepository:
                 ChatSession.user_id == owner_id,
             )
         )
+
+    def list_public_context(
+        self, viewer_id: int, limit: int, restaurant_ids: set[int] | None = None
+    ) -> list[PublicContextRow]:
+        """Read visible posts for prompt assembly; caller controls the transaction."""
+        rows = self._session.execute(
+            text("""
+                SELECT p.id, d.id AS dish_id, d.name AS dish_name,
+                       coalesce(p.caption, '') AS caption,
+                       r.id AS restaurant_id, r.name AS restaurant_name
+                FROM posts p JOIN dishes d ON d.id = p.dish_id
+                LEFT JOIN restaurants r ON r.id = p.restaurant_id
+                WHERE NOT p.is_hidden AND NOT EXISTS (
+                    SELECT 1 FROM user_blocks b WHERE
+                    (b.blocker_id = :viewer AND b.blocked_id = p.user_id)
+                    OR (b.blocker_id = p.user_id AND b.blocked_id = :viewer)
+                )
+                AND (NOT :restrict_restaurants OR
+                     p.restaurant_id = ANY(CAST(:restaurant_ids AS bigint[])))
+                ORDER BY p.created_at DESC, p.id DESC LIMIT :limit
+            """),
+            {
+                "viewer": viewer_id,
+                "limit": limit,
+                "restrict_restaurants": restaurant_ids is not None,
+                "restaurant_ids": sorted(restaurant_ids or ()),
+            },
+        ).mappings()
+        return [
+            PublicContextRow(
+                int(row["id"]),
+                int(row["dish_id"]),
+                str(row["dish_name"]),
+                str(row["caption"]),
+                int(row["restaurant_id"]) if row["restaurant_id"] is not None else None,
+                str(row["restaurant_name"]) if row["restaurant_name"] is not None else None,
+            )
+            for row in rows
+        ]
+
+    def list_history_before(
+        self, reply_id: int, session_id: int, owner_id: int, limit: int
+    ) -> list[HistoryContextRow]:
+        """Return completed messages before this question, scoped to the session owner."""
+        rows = self._session.execute(
+            text("""
+                WITH anchor AS (
+                    SELECT q.created_at, q.id
+                    FROM chat_messages reply
+                    JOIN chat_messages q ON q.id=reply.reply_to_id
+                    JOIN chat_sessions s ON s.id=q.session_id
+                    WHERE reply.id=:reply_id AND q.session_id=:session_id
+                      AND reply.session_id=q.session_id AND s.user_id=:user_id
+                      AND q.role='user' AND reply.role='assistant'
+                )
+                SELECT m.role, m.content FROM chat_messages m
+                JOIN anchor a ON (m.created_at,m.id)<(a.created_at,a.id)
+                WHERE m.session_id=:session_id AND m.status IN ('OK','FALLBACK')
+                ORDER BY m.created_at DESC,m.id DESC LIMIT :limit
+            """),
+            {"reply_id": reply_id, "session_id": session_id, "user_id": owner_id, "limit": limit},
+        ).all()
+        return [HistoryContextRow(str(row.role), str(row.content)) for row in rows]
 
     def list_sessions(self, owner_id: int, page: PageRequest) -> RepositoryPage[SessionSummary]:
         scope = f"assistant-sessions:{owner_id}"

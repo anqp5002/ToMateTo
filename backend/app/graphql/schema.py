@@ -1,4 +1,4 @@
-"""S8 readiness schema; feature groups supply their own query/mutation types."""
+"""Application GraphQL schema with S9 discovery and assistant operations."""
 
 import logging
 from collections.abc import Iterable
@@ -10,17 +10,25 @@ from strawberry.types.execution import ExecutionContext, ExecutionResult
 from strawberry.types.graphql import OperationType
 
 from app.core.exceptions import DomainError
+from app.graphql.assistant import AssistantMutation, AssistantQuery
+from app.graphql.search import SearchQuery
+from app.graphql.trending import TrendingQuery
 from graphql import GraphQLError
 
 logger = logging.getLogger(__name__)
 
 
 @strawberry.type
-class Query:
+class Query(SearchQuery, TrendingQuery, AssistantQuery):
     @strawberry.field
     def status(self) -> str:
         """Confirm the GraphQL request pipeline is reachable."""
         return "ready"
+
+
+@strawberry.type
+class Mutation(AssistantMutation):
+    pass
 
 
 class SafeSchema(strawberry.Schema):

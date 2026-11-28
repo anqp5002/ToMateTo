@@ -120,6 +120,28 @@ def test_request_id_echoes_valid_uuid_or_replaces_invalid_input(header: str) -> 
     assert (response_id == header) == (header != "invalid-request-id")
 
 
+def test_configured_web_origin_can_read_request_id() -> None:
+    config = Config("unused", "fixture", cors_origins=("http://localhost:3000",))
+    container = AppContainer(config, session_factory=Session)
+    with TestClient(create_app(container=container)) as client:
+        preflight = client.options(
+            "/graphql",
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type,authorization",
+            },
+        )
+        assert preflight.status_code == 200
+        response = client.post(
+            "/graphql",
+            headers={"Origin": "http://localhost:3000"},
+            json={"query": "{ __typename }"},
+        )
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+    assert "X-Request-Id" in response.headers["access-control-expose-headers"]
+
+
 def test_pre_execution_error_is_safe_and_has_request_id(caplog: pytest.LogCaptureFixture) -> None:
     def broken_factory(session: Session) -> SessionVerifier:
         raise RuntimeError("private-connection-credential")

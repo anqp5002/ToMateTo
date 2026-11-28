@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import Response
@@ -15,12 +16,15 @@ from strawberry.fastapi import GraphQLRouter
 from strawberry.http import GraphQLHTTPResponse
 from strawberry.types import ExecutionResult
 
+from app.adapters.ai_adapter import AiAdapter, AiProvider
 from app.core.config import Config
 from app.core.container import AppContainer, RequestScope
 from app.core.exceptions import DomainError
 from app.graphql.context import ContextFactory, RequestContext
 from app.graphql.errors import ErrorMapper
-from app.graphql.schema import Query, SafeSchema
+from app.graphql.schema import Mutation, Query, SafeSchema
+from app.repositories.search_repo import SearchRepository
+from app.services.assistant_service import AssistantService, UnavailableWritePolicy, WritePolicy
 from graphql import GraphQLError
 
 logger = logging.getLogger(__name__)
@@ -51,6 +55,8 @@ def create_app(
     *,
     container: AppContainer | None = None,
     schema: SafeSchema | None = None,
+    ai_provider: AiProvider | None = None,
+    write_policy: WritePolicy | None = None,
 ) -> FastAPI:
     """Build the app explicitly so importing this module never loads secrets."""
     dependencies = container or AppContainer(config or Config.from_env())
@@ -63,8 +69,39 @@ def create_app(
             await run_in_threadpool(dependencies.close)
 
     app = FastAPI(lifespan=lifespan)
+    if dependencies.config.cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(dependencies.config.cors_origins),
+            allow_methods=["POST"],
+            allow_headers=["Authorization", "Content-Type", "X-Request-Id"],
+            expose_headers=["X-Request-Id"],
+        )
     app.state.container = dependencies
     app.state.error_mapper = mapper
+    provider = (
+        ai_provider
+        if ai_provider is not None
+        else AiAdapter(
+            dependencies.config.ai_provider_url,
+            dependencies.config.ai_provider_key,
+            circuit_breaker_enabled=dependencies.config.ai_circuit_breaker_enabled,
+            failure_threshold=dependencies.config.ai_circuit_failure_threshold,
+            recovery_seconds=dependencies.config.ai_circuit_recovery_seconds,
+        )
+    )
+    policy = write_policy if write_policy is not None else UnavailableWritePolicy()
+    app.state.assistant_service_factory = lambda scope, clock: AssistantService(
+        scope,
+        clock,
+        provider,
+        policy,
+        nearby_reader=SearchRepository(scope.session),
+        default_location=(
+            dependencies.config.assistant_default_latitude,
+            dependencies.config.assistant_default_longitude,
+        ),
+    )
     context_factory = ContextFactory(dependencies.clock)
 
     async def scope_getter() -> AsyncIterator[RequestScope]:
@@ -120,7 +157,7 @@ def create_app(
         return response
 
     router = SafeGraphQLRouter(
-        schema or SafeSchema(query=Query),
+        schema or SafeSchema(query=Query, mutation=Mutation),
         context_getter=context_getter,
         graphql_ide=None,
         allow_queries_via_get=False,

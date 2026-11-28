@@ -1,6 +1,27 @@
-# Backend S8
+# Backend S8–S9
 
-Phạm vi hiện tại theo WP44-S8.1–S8.3 gồm khung request, lỗi, transaction, phân trang, bộ chạy job và tầng lưu trữ của Khám phá–Trợ lý. Mã dùng thư mục `backend/app/` theo hướng dẫn cài đặt S8. Python tối thiểu 3.11, SQLAlchemy đồng bộ và PostgreSQL 16.
+Phạm vi gồm khung request, lỗi, transaction, phân trang và WP44-S9.1–S9.3 cho tìm kiếm, xu hướng và trợ lý. Mã dùng thư mục `backend/app/` theo hướng dẫn. Python tối thiểu 3.12, SQLAlchemy đồng bộ và PostgreSQL 16.
+
+## Các operation S9
+
+- `search(query, type, page)` kiểm từ khóa và trả connection gộp món, quán, bài. Cursor giữ từ khóa, bộ lọc và người xem. Lọc block trước khi giới hạn trang.
+- `trending(page)` trả `WAITING` khi chưa có run và `READY` khi đã có run. Cursor mang `run_id` để các trang tiếp theo tiếp tục dùng run đã đọc.
+- `askAssistant`, `retryAssistant`, `assistantSessions` và `assistantHistory` dùng principal từ cổng Identity. Một câu hỏi gắn với một phản hồi; PENDING được commit trước lời gọi AI, kết quả quá hạn hoặc phiên bản cũ không ghi đè phiên bản mới.
+- `make_trending_runner(engine, container).run_scheduled_job("refreshTrendingSnapshot")` chạy một lượt tính trong worker. Scheduler 15 phút do Lead cung cấp.
+
+### Điểm cần ghép trước khi nghiệm thu
+
+Nhóm Identity cần bàn giao bộ xác minh JWT và Lead bàn giao `WriteAuthorizationPolicy` thật. `create_app` nhận `session_verifier_factory` qua container và nhận `write_policy` qua tham số. Nếu thiếu policy, mutation trợ lý từ chối ghi; test dùng bản giả có phạm vi rõ ràng.
+
+Adapter AI nhận endpoint qua `AI_PROVIDER_URL` và `AI_PROVIDER_KEY`, cả hai cùng được đặt hoặc cùng để trống; URL cấu hình phải dùng HTTPS. Adapter yêu cầu đầu vào JSON gồm câu hỏi và các bài công khai, đầu ra có `content`, `postIds`, `dishIds`, `restaurantIds`. Provider thật và hợp đồng phản hồi cần nhóm xác nhận. Cho tới khi xác nhận, service dựng câu trả lời ngắn từ dữ liệu công khai đã kiểm lại; chưa sử dụng nội dung tự do hoặc trích xuất draft từ provider. Draft hợp lệ đã lưu được ánh xạ vào phản hồi GraphQL; luồng dùng draft UC-19 thuộc S10. Nếu provider lỗi, service lưu trạng thái `FALLBACK` hoặc `FAILED` và trả `INTEGRATION_UNAVAILABLE`.
+
+Ngữ cảnh kèm tối đa 10 tin hoàn tất của đúng phiên và 10 bài công khai. Các mẫu email, token và cặp tọa độ được che, nhưng việc nhận diện theo mẫu không bảo đảm loại được toàn bộ thông tin riêng tư từ văn bản tự do. Giới hạn 2.048 token đầu vào / 512 token đầu ra cần tokenizer của model và provider cụ thể. Circuit breaker mặc định tắt vì DOC 7.2-A xem đây là đề xuất chờ duyệt; nếu được duyệt có thể bật bằng `AI_CIRCUIT_BREAKER_ENABLED` và cấu hình ngưỡng lỗi, thời gian thử lại qua `AI_CIRCUIT_FAILURE_THRESHOLD` và `AI_CIRCUIT_RECOVERY_SECONDS` (giá trị mẫu 5 lỗi / 30 giây). Đã kiểm timeout adapter và đường xử lý provider chậm; chưa chứng minh NFR-04 cho toàn request với DB và provider thật.
+
+`CORS_ORIGINS` là danh sách origin web được phép, ngăn cách bằng dấu phẩy. Để trống thì không bật CORS cho origin khác. Job xu hướng mặc định chỉ công bố bài và món theo Q15; `TRENDING_TAGS_ENABLED` mặc định `false`. Chỉ bật snapshot thẻ theo công thức đề xuất DOC 7.1-A sau khi Lead/DB duyệt D07. Retry trạng thái FALLBACK tiếp tục dùng kết quả hiện có theo DOC 5.3-B; chính sách này cần nhóm chốt.
+
+Nếu dữ liệu nguồn thay đổi trước khi công bố xu hướng, worker bỏ lượt và không công bố snapshot dở dang; hiện chưa tự tính lại ngay, sẽ chờ lịch chạy tiếp theo. Cần đối chiếu cơ chế tính lại với Q15 của DB khi tích hợp.
+
+Vị trí gửi trong `askAssistant` chỉ dùng tạm để chọn bài công khai gắn với quán trong bán kính 5 km; không lưu tọa độ vào lịch sử hoặc gửi tọa độ cho provider. Khi thiếu vị trí, `ASSISTANT_DEFAULT_LATITUDE` và `ASSISTANT_DEFAULT_LONGITUDE` mặc định theo điểm seed Hà Nội (21.0285, 105.8542), là giá trị tạm chưa được chốt làm cấu hình sản phẩm. Đổi qua môi trường khi nhóm thống nhất. Khi retry mà không có vị trí mới, dùng vị trí mặc định vì không lưu tọa độ của lần hỏi trước.
 
 ## Chạy và kiểm tra
 
@@ -53,4 +74,4 @@ Migration Alembic và seed chung có trên nhánh `feat/db-s8-content-migration-
 
 Khi ghép hai nhánh, hợp nhất cấu hình `backend/pyproject.toml` và fixture `backend/tests/conftest.py` để giữ được bộ kiểm của cả hai nhóm. Compose, CI, policy B10, lịch worker và bộ xác minh JWT thật được nối khi Lead và Identity bàn giao.
 
-S8 chưa kích hoạt gọi AI, quay món, job tính điểm, giao diện Flutter hoặc các quyết định đang mở về tỷ lệ pool, ngắt mạch và quota. Repository giữ `OK/FALLBACK` để tái dùng kết quả theo schema hiện tại. Chính sách cho phép retry FALLBACK cần được chốt cùng service trước S9.
+Các quyết định đang mở về tỷ lệ pool quay món, ngắt mạch và quota cần được chốt trước phần phụ thuộc ở S10. Không ghi tọa độ người dùng vào ngữ cảnh AI hoặc lịch sử.

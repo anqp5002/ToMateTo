@@ -1,4 +1,5 @@
 # Ignore all PDF files
 *.pdf
+/app/
 
 

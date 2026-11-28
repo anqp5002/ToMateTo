@@ -23,6 +23,10 @@ JOB_NAMES = frozenset(
 Job = Callable[[WorkerScope], int]
 
 
+class JobSkippedError(Exception):
+    """A registered job found that it must not publish."""
+
+
 @dataclass(frozen=True)
 class JobResult:
     """Return a safe outcome for the worker process and its logs."""
@@ -70,6 +74,8 @@ class BackgroundJobRunner:
                     if processed < 0:
                         raise ValueError("Processed count must be nonnegative.")
             return self._result(name, "SUCCESS", processed, run_id, perf_counter() - started)
+        except JobSkippedError:
+            return self._result(name, "SKIPPED", 0, run_id, perf_counter() - started)
         except Exception as error:
             # Provider exceptions can contain credentials or private response data.
             return self._result(

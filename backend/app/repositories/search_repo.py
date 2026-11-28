@@ -5,15 +5,16 @@ import math
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Literal
-from unicodedata import normalize
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from tomateto.domain.content.normalization import normalize_name
 
 from app.core.exceptions import FieldError, ValidationError
 from app.core.pagination import CursorCodec, PageRequest, SearchCursor
 from app.repositories.block_lookup import BlockLookup, PostgresBlockLookup
 from app.repositories.page import RepositoryPage
+from app.repositories.trending_repo import TrendingSnapshotRepository
 
 SearchKind = Literal["DISH", "RESTAURANT", "POST"]
 NEARBY_CANDIDATES_SQL = """
@@ -105,14 +106,16 @@ class SearchRepository:
         *,
         type_filter: SearchKind | None = None,
     ) -> RepositoryPage[SearchHit]:
-        normalized = self._session.scalar(
-            text(
-                "SELECT lower(public.unaccent(btrim("
-                "regexp_replace(:query, '[[:space:]]+', ' ', 'g'))))"
-            ),
-            {"query": normalize("NFC", query)},
-        )
-        normalized_query = str(normalized)
+        if not query.strip():
+            # Low-level catalog readers support an empty keyword to list all.
+            # The public search service validates its own two-character minimum.
+            normalized_query = ""
+        else:
+            try:
+                normalized_query = normalize_name(query)
+            except ValueError as exc:
+                message = "Vui lòng nhập từ khóa tìm kiếm hợp lệ."
+                raise ValidationError(field_errors=[FieldError("query", "", message)]) from exc
         filter_key = type_filter or "ALL"
         query_hash = hashlib.sha256(normalized_query.encode()).hexdigest()
         scope = f"search:{filter_key}:{viewer_id}:{query_hash}"
@@ -214,24 +217,9 @@ class SearchRepository:
     ) -> list[TrendingDishCandidate]:
         if limit <= 0:
             raise ValidationError(message="Số lượng mục mỗi trang không hợp lệ.")
-        rows = (
-            self._session.execute(
-                text("""
-            SELECT s.dish_id,d.name,s.score FROM trending_dish_snapshots s
-            JOIN dishes d ON d.id=s.dish_id
-            WHERE s.run_id=(SELECT id FROM trending_runs ORDER BY published_at DESC,id DESC LIMIT 1)
-            AND EXISTS (
-                SELECT 1 FROM trending_post_snapshots ps JOIN posts p ON p.id=ps.post_id
-                WHERE ps.run_id=s.run_id AND p.dish_id=s.dish_id AND NOT p.is_hidden
-                AND p.user_id <> ALL(CAST(:blocked_user_ids AS bigint[]))
-            ) ORDER BY s.score DESC,s.dish_id DESC LIMIT :limit
-        """),
-                {"blocked_user_ids": self._blocked_ids(viewer_id), "limit": min(limit, 50)},
-            )
-            .mappings()
-            .all()
-        )
-        return [
-            TrendingDishCandidate(int(r["dish_id"]), str(r["name"]), Decimal(r["score"]))
-            for r in rows
-        ]
+        snapshots = TrendingSnapshotRepository(self._session, self._blocks)
+        run = snapshots.latest_run()
+        if run is None:
+            return []
+        rows = snapshots.list_dishes(run.id, PageRequest.of(min(limit, 50)), viewer_id).items
+        return [TrendingDishCandidate(row.dish_id, row.name, row.score) for row in rows]

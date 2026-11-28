@@ -1,9 +1,13 @@
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from unicodedata import normalize
 
 import pytest
 from app.core.exceptions import ValidationError
 from app.core.pagination import PageMapper, PageRequest
+from app.models.trending import TrendingRun
 from app.repositories.search_repo import SearchRepository
+from app.repositories.trending_repo import SnapshotScore, TrendingSnapshotRepository
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -83,6 +87,46 @@ def test_search_accepts_injected_block_lookup(db_session: Session) -> None:
     db_session.execute(text("UPDATE posts SET user_id=2 WHERE id=1"))
     repo = SearchRepository(db_session, BlockFake())
     assert repo.search_posts("", PageRequest.of(1), 1).items[0].item_id == 2
+
+
+def test_trending_compatibility_uses_latest_run_and_filters_before_limit(
+    db_session: Session,
+) -> None:
+    reader = SearchRepository(db_session)
+    snapshots = TrendingSnapshotRepository(db_session)
+    assert reader.list_trending_dishes(10, viewer_id=1) == []
+    with pytest.raises(ValidationError):
+        reader.list_trending_dishes(0)
+
+    now = datetime(2026, 11, 22, tzinfo=UTC)
+    snapshots.publish(
+        TrendingRun(window_start=now - timedelta(days=7), window_end=now, formula_version="old"),
+        [SnapshotScore(3, Decimal(100))],
+        [SnapshotScore(3, Decimal(100))],
+    )
+    latest = snapshots.publish(
+        TrendingRun(window_start=now, window_end=now + timedelta(days=7), formula_version="new"),
+        [
+            SnapshotScore(1, Decimal(30)),
+            SnapshotScore(2, Decimal(20)),
+            SnapshotScore(3, Decimal(10)),
+        ],
+        [
+            SnapshotScore(1, Decimal(30)),
+            SnapshotScore(2, Decimal(20)),
+            SnapshotScore(3, Decimal(10)),
+        ],
+    )
+    db_session.execute(text("UPDATE posts SET user_id=2 WHERE id=1"))
+    db_session.execute(text("INSERT INTO user_blocks(blocker_id,blocked_id) VALUES (1,2)"))
+
+    rows = reader.list_trending_dishes(2, viewer_id=1)
+    expected = snapshots.list_dishes(latest.id, PageRequest.of(2), viewer_id=1).items
+    assert [(row.dish_id, row.name, row.score) for row in rows] == [
+        (row.dish_id, row.name, row.score) for row in expected
+    ]
+    assert [row.dish_id for row in rows] == [2, 3]
+    assert [row.dish_id for row in reader.list_trending_dishes(1)] == [1]
 
 
 def test_nearby_retains_dateline_and_polar_candidates(db_session: Session) -> None:
